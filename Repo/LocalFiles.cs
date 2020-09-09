@@ -2,9 +2,11 @@
 // Copyright (C) 2018-2020 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
+using GGFront.Properties;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
 namespace GGFront
@@ -17,10 +19,16 @@ namespace GGFront
         public string GHDLPath, GTKWavePath;
         public string simLimit; // v0.4.4+
         public int procLimit;   // v0.4.4+
+        public int errorWindowWidth;    // v0.5.0+
+        public int errorWindowHeight;   // v0.5.0+
+        public int errorWindowTextSize; // v0.5.0+
         private bool disableSaveSettings;
 
         public const string simLimitDefault = "1ms";
         public const int procLimitDefault = 3000; // ms
+        public const int errorWindowWidthDefault = 500;
+        public const int errorWindowHeightDefault = 300;
+        public const int errorWindowTextSizeDefault = 12;
 
         public GGFrontSettings()
         {
@@ -33,6 +41,11 @@ namespace GGFront
             GHDLPath = "";
             GTKWavePath = "";
             guessGHDLPath = guessGTKWavePath = false;
+            simLimit = simLimitDefault;
+            procLimit = procLimitDefault;
+            errorWindowHeight = errorWindowHeightDefault;
+            errorWindowWidth = errorWindowWidthDefault;
+            errorWindowTextSize = errorWindowTextSizeDefault;
         }
 
         public bool Load()
@@ -62,6 +75,18 @@ namespace GGFront
                 {
                     simLimit = newSettings.simLimit;
                     procLimit = newSettings.procLimit;
+                }
+                if (version < 0.5)
+                {
+                    errorWindowHeight = errorWindowHeightDefault;
+                    errorWindowWidth = errorWindowWidthDefault;
+                    errorWindowTextSize = errorWindowTextSizeDefault;
+                }
+                else
+                {
+                    errorWindowHeight = newSettings.errorWindowHeight;
+                    errorWindowWidth = newSettings.errorWindowWidth;
+                    errorWindowTextSize = newSettings.errorWindowTextSize;
                 }
                 GHDLPath = newSettings.GHDLPath;
                 GTKWavePath = newSettings.GTKWavePath;
@@ -146,6 +171,42 @@ namespace GGFront
                 return false;
             }
             return true;
+        }
+    }
+
+    // エラー一覧に対応するクラス
+    public class GHDLErrorDescription
+    {
+        public string pattern, name, description, handling;
+    }
+    public class GHDLErrorList
+    {
+        List<GHDLErrorDescription> errors;
+
+        public GHDLErrorList()
+        {
+            errors = new List<GHDLErrorDescription>();
+            string[] strs = Resources.ErrorList.Replace("\r\n","\n").Split(new[]{ '\n'});
+            for (int i = 0; i < strs.Length - 3; i += 4)
+            {
+                GHDLErrorDescription newError = new GHDLErrorDescription();
+                newError.pattern = strs[i];
+                newError.name = strs[i + 1];
+                newError.description = strs[i + 2];
+                newError.handling = strs[i + 3];
+                errors.Add(newError);
+            }
+        }
+
+        public GHDLErrorDescription match (string str)
+        {
+            foreach(GHDLErrorDescription error in errors)
+            {
+                if (Regex.Match(str, error.pattern).Success) {
+                    return error;
+                }
+            }
+            return null;
         }
     }
 }

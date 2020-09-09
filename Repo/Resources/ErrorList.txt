@@ -1,0 +1,136 @@
+is an invalid character, replaced by
+'●' is an invalid character, replaced by '◎'
+VHDL 記述の中（文字列内やコメントを除く）で使えない文字（中括弧など）が使われています．その後のエラーのチェックは，●の部分を◎だとみなして進めます．
+エラーが出た部分やその周辺に当該の文字●がないか確認し，適切に修正してください．全角文字が混入してしまった可能性もあります．
+is expected instead of
+●● is expected instead of ◎◎
+文法エラーです．本来ならば●●が必要なところに◎◎と記載されています．
+カンマ，コロンなどの記号やキーワード（is など）の打ち忘れ，または過剰，その他スペルミスなどがないか確認してください．また，識別子（信号名など）に本来使えない予約語（begin など）を使ってしまった場合もこの類のエラーが出ます．
+expected after identifier
+●● or ◎◎ expected after identifier (found: ▲▲)
+文法エラーです．識別子（信号名など）の後には本来ならば●●や◎◎が必要ですが，▲▲と記載されています．
+このエラーが出る場合，port 宣言において区切り記号のカンマやコロンが抜けている場合がほとんどです．特に，信号名と入出力・型名の間はコロンで区切ることに注意してください．
+expected after
+●● expected after ◎◎ (found: ▲▲)
+文法エラーです．◎◎の後には本来ならば●●が必要ですが，▲▲と記載されています．
+カンマ，コロンなどの記号やキーワード（is など）の打ち忘れ，または過剰，その他スペルミスなどがないか確認してください．
+is not a variable to be assigned
+●● is not a variable to be assigned
+:= 演算子の左辺が変数ではなく信号です．
+信号への代入には <= 演算子を使ってください．
+':=' not allowed in concurrent statement, replaced by '<='
+':=' not allowed in concurrent statement, replaced by '<='
+:= 演算子の左辺が変数ではなく信号です．
+信号への代入には <= 演算子を使ってください．
+an identifier can't start with '_'
+an identifier can't start with '_'
+識別子（信号名など）の最初の文字にはアンダースコア（_）は使えません．
+識別子の最初の文字は英字に限りますので，最初の文字を英字にするよう修正してください．識別子の途中にアンダースコアを使うことは問題ありません（最後の文字も不可です）．
+cannot find resource library
+cannot find resource library "●●"
+●●というライブラリが見つかりません．library でのスペルミスと思われます．
+よく使われるのは IEEE ライブラリです．記述の最初の行でlibrary IEEE; と正しく記載されているか確かめてください．
+can't associate .* with signal interface
+can't associate '●●' with signal interface "◎◎" (type of ...)
+他の回路をインスタンス化するにあたり，port map に記載されている信号の型が，component 宣言の入出力の型と一致していません．
+あとに続く(type of ...)のメッセージで，それぞれどの型と認識されているかが表示されますので，それを参考に修正してください．典型的には port map の記載の順序のミスですが，まれに component 宣言が間違っている場合（型のスペルミスなど）や，IEEE.std_logic_1164 の宣言し忘れの場合もあります．
+character .* can only be used in strings or comments
+character '●' can only be used in strings or comments
+VHDL記述の中（文字列内やコメントを除く）で使えない文字（@など）が使われています．
+エラーが出た部分やその周辺に当該の文字がないか確認し，適切に修正してください．●が文字化けしている場合，全角文字が混入してしまった可能性があります．
+control character that is not CR, LF, FF, HT or VT is not allowed
+control character that is not CR, LF, FF, HT or VT is not allowed
+VHDL記述の中（コメントを除く）で使えない制御文字が使われています．
+多くの場合は，エラーが出た部分やその周辺に全角文字が混入しています（特に全角スペースは気づきにくいです）．よく確認し，適切に修正してください．
+design file is empty (no design unit found)
+design file is empty (no design unit found)
+指定されたファイルに何も書かれていませんでした．
+空，またはコメントしかないファイルが GGFront 上で Source File(s) として指定されています．当該のファイルを GGFront 上で選択し，Remove してください．または，他のエラーが原因でファイルの解析に失敗した可能性もあります．
+"end component;" expected
+"end component;" expected
+component 宣言は，end component; で閉じる必要があります．
+記載忘れがないか確認してください．なお，end component; でなくend （entity名）; などと記載した場合も，同様のエラーが出ます．
+entity, architecture, package or configuration keyword expected
+entity, architecture, package or configuration keyword expected
+entity, architectureなどの宣言の外で，それらの中でするべき記述が使われています．
+ほとんどの場合，library, use, entity, architectureなどの文自体のスペルミスや記述漏れが原因です． これらの文に記述ミスがないか確認してください．
+missing entity, architecture, package or configuration
+missing entity, architecture, package or configuration
+entity, architectureなどの宣言が見つかりません．
+ほとんどの場合，library, use, entity, architectureなどの文自体のスペルミスや記述漏れが原因です． これらの文に記述ミスがないか確認してください．
+extra .* at end of interface list
+extra ●● at end of interface list
+port 宣言の末尾に余分な文字列があります．
+多くの場合，●●部分はセミコロン（;）になっているかと思われます．ポート宣言の区切りのセミコロンは最後には不要です．削除してください．
+identifier cannot finish with '_'
+identifier cannot finish with '_'
+識別子（信号名など）の最後の文字にはアンダースコア（_）は使えません．
+識別子の最後の文字を英数字にするよう修正してください．識別子の途中にアンダースコアを使うことは問題ありません．
+interface declaration expected
+interface declaration expected
+port 宣言中では入出力が宣言されるはずですが，そうなっていません． 
+ポート宣言の閉じカッコが不足している場合がほとんどです．ポート宣言が適切にカッコで閉じられているか確認してください．
+missing .* after
+missing "●●" after ◎◎
+文法エラーです．本来ならば◎◎の後には●●が必要ですが，それがありません．
+カンマ，コロンなどの記号やキーワード（is など）の打ち忘れ，その他スペルミスなどがないか確認してください．
+missing choice\(s\)
+missing choice(s)
+case 文が全ての選択肢を網羅していません．
+多くの場合，case 文で when others の場合を記載していないのが原因です（この場合，GHDL ではエラーとなるようです）．when others はたとえ実際には使われない場合でも必ず記載してください．
+misspelling, .* expected
+misspelling, "●●" expected
+文法エラーです．本来ならば●●（回路名やアーキテクチャ名）が来るべきところ，そうでない語句が記載されています．entity 宣言や architecture 宣言を閉じる際のスペルミスと考えられます．
+指摘された部分のスペルミスを修正し，●●の通りにしてください．
+no declaration for
+no declaration for "●●"
+●●という信号・型名・演算子などが宣言されていません．
+まずは，当該箇所でスペルミスをしていないかを確認してください．std_logic や operator "+"（+ 演算子）など，ライブラリに含まれる型や演算子が見つからない場合は，ライブラリの宣言漏れがないかを確認してください（例えば IEEE.std_logic_unsigned）．ライブラリの宣言中にこのエラーが出ている場合は，library 文の記載漏れやミスがないか確認してください．
+object class keyword such as 'variable' is expected
+object class keyword such as 'variable' is expected
+architecture 宣言の begin よりも前に，begin 以降でするべき記述が書かれています．
+architecture 宣言の begin よりも前では，component や signal，type などの宣言のみが行なえます．これらの宣言に記述ミスがないかを確認してください．また，回路の動作記述の本体は begin 以降に記述してください．
+only one type of logical operators may be used to combine relation
+only one type of logical operators may be used to combine relation
+論理演算子の順序があいまいです．例えば A and B or C という記述からは，and演算とor演算のどちらを先に行うべきかが判別できません．
+カッコを使って演算の優先順位をはっきりさせてください．上の例では，(A and B) or C またはA and (B or C) のどちらを意図しているかを明確にしてください．
+port must be a signal
+port must be a signal
+port 宣言ではまず信号名が記載されるはずですが，そうなっていません．
+ポート宣言の記述が正しいか確認してください．おそらく他の文法エラーを併発しているはずですので，そのエラーへの対処法が参考になるはずです．
+sequence of 'nor' or 'nand' not allowed
+sequence of 'nor' or 'nand' not allowed ('nor' and 'nand' are not associative)
+論理演算子の順序があいまいです．例えば A nand B nand C という記述は，左のnand演算と右のnand演算のどちらを先に行うかにより，結果が異なります．
+カッコを使って演算の優先順位をはっきりさせてください．上の例では，(A nand B) nand C またはA nand (B nand C) のどちらを意図しているかを明確にしてください．あるいは，3入力以上のNAND・NORゲートを意図しているのであれば，nand や nor を使わず，not (A and B and C) などとしてください．
+space is required between number and unit name
+space is required between number and unit name
+数字と単位の間にはスペースが必要です．
+テストベンチで待ち時間を記述する場合には，50ns ではなく 50 ns のように，数字と単位とをスペースで分離してください．また，識別子（信号名など）の最初の文字には数字は使えません．もしそのような識別子をつけているのであれば，最初の文字を英字にするよう修正してください．
+target \(variable .*\) is not a signal
+target (variable ●●) is not a signal
+<= 演算子の左辺が信号ではなく変数です．
+変数への代入には := 演算子を使ってください．
+too many actuals for component instance
+too many actuals for component instance "●●"
+他の回路をインスタンス化するにあたり，port map に記載されている信号の数が，component 宣言の入出力の数よりも多いです．
+port map か component 宣言かのどちらかに誤りがあると思われるので，確認してください．なお，port map に記載されている信号の数の方が少ない場合は，エラーは生じません（ただし，足りない分は未接続として扱われますので，思わぬバグを生むかもしれません）．
+two underscores can't be consecutive
+two underscores can't be consecutive
+識別子（信号名など）ではアンダースコア（_）を連続で使うことはできません．
+識別子名に連続するアンダースコアがないように修正してください．アンダースコアを使うこと自体は問題ありません（最初と最後の文字はアンダースコア不可）．
+unexpected token .* in a concurrent statement list
+unexpected token '●●' in a concurrent statement list
+文法エラーです．architecture 宣言の begin 以降で予期せぬ文字列●●が記載されていました．
+カンマ，コロンなどの記号やキーワード（begin など）の打ち忘れ，または過剰，その他スペルミスなどがないか確認してください．
+unexpected end of file, 'END;' expected
+unexpected end of file, 'END;' expected
+文法エラーです．architecture 宣言などに対応する end ●●; がありません．
+閉じる必要がある（end ●●; が必要な）文，例えば entity, architecture, if などが，正しく閉じられているか確認してください．
+wait statement not allowed in a sensitized process
+wait statement not allowed in a sensitized process
+センシティビティリストのある process 文では wait 文は使用できません．
+もしこの process 文が組合せ回路や順序回路を意図して書いたものであれば，wait 文は使用できないので取り除いてください（wait 文はテストベンチ専用です）．もしテストベンチで入力波形を与える意図であるならば，センシティビティリストは不要ですので，process begin を用いてください．
+no default binding for instantiation of component
+no default binding for instantiation of component "●●"
+ある回路が他の回路をインスタンス化しようとしていますが，その回路が見つかりません．
+必要な全てのファイルが GGFront 上で Source File(s) として指定されているかを確認してください．また，entity 宣言や architecture 宣言における回路名が正しいかどうかを確認してください．他のエラーが原因で回路が正しく認識されていない場合もあります．

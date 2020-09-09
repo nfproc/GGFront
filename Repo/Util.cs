@@ -20,7 +20,8 @@ namespace GGFront
         public static string baseDir, workDir, settingName, currentProjectName;
         public static GGFrontSettings settings;
         public static GGFrontProject currentProject;
-        public const string GGFrontDataVersion = "0.4";
+        public static GHDLErrorList errorList;
+        public const string GGFrontDataVersion = "0.5";
 
         public static readonly int[] procLimits = new int[] { 3000, 5000, 10000, 15000, 20000 };
         public static readonly string[] simLimits = new string[] { "1ms", "10ms", "100ms", "1000ms", "10000ms" };
@@ -35,6 +36,7 @@ namespace GGFront
             settingName = baseDir + "setting.xml";
             settings = new GGFrontSettings();
             currentProject = new GGFrontProject();
+            errorList = new GHDLErrorList();
             if (!settings.Load())
             {
                 //Warn("初めにGHDLとGTKWaveのファイルを指定してください．");
@@ -94,14 +96,14 @@ namespace GGFront
             analResult.RestoreFileName(currentProject.sourceFiles);
             if (analResult.code != 0)
             {
+                Warn("解析中にエラーが発生しました．詳しくはログを参照してください．");
                 analResult.ShowMessage();
-                Warn("解析中にエラーが発生しました．詳しくはログファイルを参照してください．");
                 return;
             }
             else if (analResult.message != "")
             {
                 analResult.ShowMessage();
-                if (!WarnAndConfirm("解析中に警告が発生しました．詳しくはログファイルを参照してください．\n" +
+                if (!WarnAndConfirm("解析中に警告が発生しました．詳しくはログを参照してください．\n" +
                     "続けてシミュレーションを行いますか？"))
                     return;
             }
@@ -119,8 +121,8 @@ namespace GGFront
             }
             else if (simResult.code != 0)
             {
+                Warn("シミュレーション中にエラーが発生しました．詳しくはログを参照してください．");
                 simResult.ShowMessage();
-                Warn("シミュレーション中にエラーが発生しました．詳しくはログファイルを参照してください．");
                 return;
             }
             else
