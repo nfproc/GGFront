@@ -134,3 +134,27 @@ no default binding for instantiation of component
 no default binding for instantiation of component "●●"
 ある回路が他の回路をインスタンス化しようとしていますが，その回路が見つかりません．
 必要な全てのファイルが GGFront 上で Source File(s) として指定されているかを確認してください．また，entity 宣言や architecture 宣言における回路名が正しいかどうかを確認してください．他のエラーが原因で回路が正しく認識されていない場合もあります．
+no function declarations for operator
+no function declarations for operator "●●"
+演算子の定義が見つかりません．
+対象の演算子が + や * などの算術演算子であれば，算術演算パッケージを宣言しているかどうかチェックしてください．演算対象の型が不適切な可能性もあります．例えば，std_logic_vector と integer の間では and 演算は使用できません．
+actual constraints don't match formal ones
+actual constraints don't match formal ones
+他の回路をインスタンス化するにあたり，port map に記載されている信号のビット長が，component 宣言の入出力のビット長と一致していません．
+通常は，std_logic_vector の長さの不一致によって起こるエラーです．信号のビット長や，ビットの切り出し方が適切かどうか，確認してください．
+actual expression must be globally static
+actual expression must be globally static
+他の回路をインスタンス化するにあたり，port map には式を書くことができません．
+port map の中では & などの演算子は使用できません．別途内部信号を定義して，その信号を port map に記載するようにしてください．
+string length does not match that of anonymous integer subtype defined
+string length does not match that of anonymous integer subtype defined at ●●
+定数のビット長が代入先と一致していません．
+通常は，std_logic_vector 型の長さの不一致によって起こるエラーです．信号・変数のビット長は適切か，あるいはそれと等しい長さの定数を代入しようとしているか，確認してください．
+static range violates bounds
+static range violates bounds
+配列のインデックスとして与えられた定数が，配列の範囲外です．
+通常は，std_logic_vector 型の切り出し方が不適切な場合に起こるエラーです．信号・変数のビット長は適切か，あるいはその一部を適切に切り出そうとしているか，確認してください．
+error: bound check failure
+error: bound check failure at ●●
+配列の長さやインデックスのチェックに失敗しました．
+典型的には，代入文において左辺と右辺のビット幅が異なることが原因です．特に + や * を使う場合には，演算結果のビット幅に注意してください．まれに，entity と component の宣言の不一致によって，このエラーが出る場合もあります．

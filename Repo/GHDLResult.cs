@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2020 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -29,6 +29,16 @@ namespace GGFront
             generatedDate = DateTime.Now.ToString();
         }
 
+        private string GetOriginalFileName(List<string> org, Match match)
+        {
+            string origFile = org[int.Parse(match.Groups[1].Value) - 1];
+            string result = Path.GetFileName(origFile);
+            result += " " + match.Groups[2].Value + "行";
+            if (match.Groups[3].Value != "")
+                result += " " + match.Groups[3].Value + "文字";
+            return result;
+        }
+
         public void RestoreFileName(List<string> org)
         {
             if (message == "")
@@ -40,22 +50,28 @@ namespace GGFront
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                Match match = Regex.Match(line, @"^src(\d+)\.vhd:(\d+):(\d+):(warning:)?(.*)");
+                // ファイル名の復元
+                Match match = Regex.Match(line, @":error:");
                 if (match.Success)
                 {
-                    string origFile = org[int.Parse(match.Groups[1].Value) - 1];
-                    origFile = Path.GetFileName(origFile);
-                    newMessage += "[" + origFile + " " + match.Groups[2].Value + "行 ";
-                    newMessage += match.Groups[3].Value + "文字";
-                    if (match.Groups[4].Value != "")
-                        newMessage += " (警告)";
-                    newMessage += "] " + match.Groups[5].Value + "\r\n";
-                    descs[i] = Util.errorList.match(lines[i]);
+                    line = line.Substring(match.Index + 1);
+                    descs[i] = Util.errorList.match(line);
                 }
-                else
+                match = Regex.Match(line, @"^src(\d+)\.vhd:(\d+):(\d+):(warning:)?(.*)");
+                if (match.Success)
                 {
-                    newMessage += line + "\r\n";
+                    line = "[" + GetOriginalFileName(org, match);
+                    if (match.Groups[4].Value != "")
+                        line += " (警告)";
+                    line += "] " + match.Groups[5].Value;
+                    descs[i] = Util.errorList.match(line);
                 }
+                match = Regex.Match(line, @"at src(\d+)\.vhd:(\d+):?(\d*)$");
+                if (match.Success)
+                    line = line.Substring(0, match.Index + 3) + "[" + GetOriginalFileName(org, match) + "]";
+                newMessage += line + "\r\n";
+
+                // シミュレーション終了時刻の取得
                 match = Regex.Match(line, @"@(\d+)([munpf])s:\(assertion failure\)");
                 if (match.Success)
                 {
