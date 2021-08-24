@@ -123,6 +123,7 @@ namespace GGFront
                     tb.Inlines.Add(new Bold(new Run("対処: ")));
                     tb.Inlines.Add(new Run(descs[i].handling));
                     newRun.ToolTip = tb;
+                    ToolTipService.SetShowDuration(newRun, int.MaxValue);
 
                     messageForCopy += "  説明: " + descs[i].description + "\r\n";
                     messageForCopy += "  対処: " + descs[i].handling + "\r\n";
