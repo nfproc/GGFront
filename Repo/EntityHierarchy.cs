@@ -77,8 +77,11 @@ namespace GGFront
             trees.Sort((a, b) => b.Count - a.Count);
 
             // トップモジュール・波形ファイルの設定
-            if (!entities.Contains(project.topModule))
+            if (!entities.Contains(project.topModule) || project.guessTopModule)
+            {
                 project.topModule = trees[0][0].Name;
+                project.guessTopModule = true;
+            }
             if (entities.Contains(project.topModule))
             {
                 string file = inFile[project.topModule];
@@ -126,16 +129,19 @@ namespace GGFront
             List<EntityHierarchyItem> result = new List<EntityHierarchyItem>();
             if (parents.Contains(target))  // 循環参照の場合エラー
                 return null;
-            if (!entities.Contains(target)) // Entity 宣言がない場合無視
-                return result;
 
             EntityHierarchyItem targetItem = new EntityHierarchyItem
             {
-                IsValid = true,
+                IsValid = entities.Contains(target), // Entity 宣言がない場合無効
                 Level = 0,
                 Name = target
             };
             result.Add(targetItem);
+            if (!entities.Contains(target)) // Entity 宣言がない場合はそれ以上掘らない
+            {
+                targetItem.ShortPath = "???";
+                return result;
+            }
 
             List<string> newParents = new List<string>(parents);
             newParents.Add(target);

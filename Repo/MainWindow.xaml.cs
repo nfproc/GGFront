@@ -7,13 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Shapes;
-using System.Xml.Serialization;
 
 namespace GGFront
 {
@@ -185,6 +182,17 @@ namespace GGFront
             UpdateHierarchy();
         }
 
+        // ソースをリセットするボタン（Reset）が押された場合
+        private void Reset_Click(object sender, RoutedEventArgs e)
+        {
+            if (sourceCollection.Count == 0)
+                return;
+            if (!Util.WarnAndConfirm("ソースファイル一覧がリセットされます．続けますか？"))
+                return;
+            sourceCollection.Clear();
+            UpdateHierarchy();
+        }
+
         // トップモジュールを指定するボタン （Set as Top）が押された場合
         private void SetAsTop_Click(object sender, RoutedEventArgs e)
         {
@@ -192,6 +200,7 @@ namespace GGFront
             if (item == null)
                 return;
             Util.currentProject.topModule = item.Name;
+            Util.currentProject.guessTopModule = false;
             UpdateHierarchy();
         }
 
@@ -209,7 +218,6 @@ namespace GGFront
                 Util.currentProject.sourceFiles.Add(item.Name);
 
             List<EntityHierarchyItem> items = Util.currentProject.hierarchy.Update();
-            Util.currentProject.GGFrontVersion = Util.settings.GGFrontVersion;
             hierarchyCollection.Clear();
             foreach (EntityHierarchyItem item in items)
                 hierarchyCollection.Add(item);
@@ -242,65 +250,6 @@ namespace GGFront
                 return;
             }
             Util.ExecTool(Util.GetGTKWavePath(), "\"" + Util.currentProject.wavePath + "\"", true);
-        }
-
-        // Save Project ボタンが押された場合
-        private void Save_Click(object sender, RoutedEventArgs e)
-        {
-            SaveFileDialog dialog = new SaveFileDialog();
-            dialog.Filter = "GGFront Project XML (*.xml)|*.xml";
-            dialog.FileName = Util.currentProjectName;
-            if (dialog.ShowDialog() == false)
-                return;
-
-            Util.currentProjectName = dialog.FileName;
-            try {
-                XmlSerializer serial = new XmlSerializer(typeof(GGFrontProject));
-                FileStream fs = new FileStream(dialog.FileName, FileMode.Create);
-                serial.Serialize(fs, Util.currentProject);
-                fs.Close();
-            }
-            catch (Exception ex)
-            {
-                Util.Warn("ファイルの保存に失敗: " + ex.ToString());
-            }
-        }
-
-        // Load Project ボタンが押された場合
-        private void Load_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog dialog = new OpenFileDialog();
-            dialog.Filter = "GGFront Project XML (*.xml)|*.xml";
-            dialog.FileName = Util.currentProjectName;
-            if (dialog.ShowDialog() == false)
-                return;
-
-            Util.currentProjectName = dialog.FileName;
-            try
-            {
-                XmlSerializer serial = new XmlSerializer(typeof(GGFrontProject));
-                FileStream fs = new FileStream(dialog.FileName, FileMode.Open);
-                GGFrontProject newProject = (GGFrontProject)serial.Deserialize(fs);
-                if (newProject.GGFrontVersion != Util.GGFrontDataVersion)
-                    throw (new InvalidOperationException());
-                Util.currentProject = newProject;
-                fs.Close();
-                
-            }
-            catch (InvalidOperationException)
-            {
-                Util.Warn("プロジェクトが無効か，バージョンが古いです．");
-                return;
-            }
-            catch (Exception ex)
-            {
-                Util.Warn("ファイルのオープンに失敗: " + ex.ToString());
-                return;
-            }
-            sourceCollection.Clear();
-            foreach (string src in Util.currentProject.sourceFiles)
-                AddSource(src);
-            UpdateHierarchy();
         }
 
         // GHDL, GTKWave のパスが入力された場合
@@ -353,6 +302,7 @@ namespace GGFront
             }
         }
 
+        // GHDL, GTKWave を所定の場所とするチェックが外れた場合
         private void GuessAppPath_Unchecked(object sender, RoutedEventArgs e)
         {
             if (((CheckBox)sender).Name.Equals("chkGuessGHDLPath"))
@@ -371,6 +321,7 @@ namespace GGFront
             }
         }
 
+        // シミュレーション時間の設定が変更された場合
         private void Simlimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             LimitSelectorItem item = (LimitSelectorItem) cmbSimLimit.SelectedItem;
@@ -378,6 +329,7 @@ namespace GGFront
             Util.settings.Save();
         }
 
+        // GHDL の実行時間制限の設定が変更された場合
         private void Reallimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             LimitSelectorItem item = (LimitSelectorItem)cmbRealLimit.SelectedItem;

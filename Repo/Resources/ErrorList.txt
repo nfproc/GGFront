@@ -158,3 +158,11 @@ error: bound check failure
 error: bound check failure at ●●
 配列の長さやインデックスのチェックに失敗しました．
 典型的には，代入文において左辺と右辺のビット幅が異なることが原因です．特に + や * を使う場合には，演算結果のビット幅に注意してください．まれに，entity と component の宣言の不一致によって，このエラーが出る場合もあります．
+sequential statement only allowed in processes
+sequential statement only allowed in processes
+順次処理文専用の記述が，順次処理文の外で使われています．
+if 文や wait 文などは process 文の中でしか使えません．process 文を書き忘れていないか確認してください．
+conditional signal assignment not allowed
+conditional signal assignment not allowed in before vhdl08
+条件つき代入文が，順次処理文の中で使われています．これが認められるのは VHDL-2008 規格以降です．
+条件つき代入（値1 when 条件 else 値2）は同時処理文専用です．process 文の中で場合分けをする場合は if 文を使ってください．

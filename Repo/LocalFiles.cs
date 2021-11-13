@@ -149,11 +149,11 @@ namespace GGFront
         }
     }
 
-    // プロジェクトファイルに対応するクラス
+    // プロジェクトファイル（だったもの）に対応するクラス
     public class GGFrontProject
     {
-        public string GGFrontVersion;
         public string wavePath, topModule;
+        public bool guessTopModule;
         public List<string> sourceFiles;
         public EntityHierarchy hierarchy;
 
@@ -161,6 +161,7 @@ namespace GGFront
         {
             sourceFiles = new List<string>();
             hierarchy = new EntityHierarchy(this);
+            guessTopModule = true;
         }
 
         public bool Check()

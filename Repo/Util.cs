@@ -4,12 +4,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 
 namespace GGFront
@@ -17,7 +15,7 @@ namespace GGFront
     // 諸々の処理
     public class Util
     {
-        public static string baseDir, workDir, settingName, currentProjectName;
+        public static string baseDir, workDir, settingName;
         public static GGFrontSettings settings;
         public static GGFrontProject currentProject;
         public static GHDLErrorList errorList;

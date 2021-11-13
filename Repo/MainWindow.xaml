@@ -1,5 +1,5 @@
 ﻿<!-- GGFront: A GHDL/GTKWave GUI Frontend
-     Copyright (C) 2018-2019 Naoki FUJIEDA. New BSD License is applied.
+     Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
      *******************************************************************-->
 
 <Window x:Class="GGFront.MainWindow"
@@ -114,7 +114,14 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <TextBlock Margin="{Binding Path=Level, Converter={StaticResource levelConverter}}">
-                            <Run Text="{Binding Path=Name}" Foreground="{Binding Path=IsTop, Converter={StaticResource topColorConverter}}" FontWeight="{Binding Path=IsTop, Converter={StaticResource topFontConverter}}"/>
+                            <Run Text="{Binding Path=Name}" FontWeight="{Binding Path=IsTop, Converter={StaticResource topFontConverter}}">
+                                <Run.Foreground>
+                                    <MultiBinding Converter="{StaticResource topColorConverter}">
+                                        <Binding Path="IsValid"/>
+                                        <Binding Path="IsTop"/>
+                                    </MultiBinding>
+                                </Run.Foreground>
+                            </Run>
                             <Run Text="{Binding Path=ShortPath, Converter={StaticResource pathConverter}}" FontSize="10" Foreground="Gray"/>
                         </TextBlock>
                     </DataTemplate>
@@ -134,8 +141,7 @@
             </Grid.ColumnDefinitions>
             <Button x:Name="btnCompile" Content="Compile and Simulate" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0" Grid.Column="1" Click="Compile_Click"/>
             <Button x:Name="btnViewWave" Content="View Waveform" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.Column="2" Margin="5,0" Click="ViewWave_Click"/>
-            <Button x:Name="btnSave" Content="Save Project" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0" Grid.Column="3" Click="Save_Click"/>
-            <Button x:Name="btnLoad" Content="Load Project" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.Column="4" Margin="5,0" Click="Load_Click"/>
+            <Button x:Name="btnReset" Content="Reset Project" HorizontalAlignment="Left" Margin="5,0,0,0" Grid.Column="3" Click="Reset_Click" Height="20" VerticalAlignment="Top"/>
         </Grid>
     </Grid>
 </Window>

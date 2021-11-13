@@ -4,6 +4,7 @@
 
 using System;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace GGFront
 {
@@ -57,14 +58,14 @@ namespace GGFront
         }
     }
 
-    public class HierarchyTopColorConverter : IValueConverter
+    public class HierarchyTopColorConverter : IMultiValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            return ((bool)value) ? "Blue" : "Black";
+            return (! (bool)values[0]) ? Brushes.Brown : ((bool)values[1]) ? Brushes.Blue : Brushes.Black;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
         }
