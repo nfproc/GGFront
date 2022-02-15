@@ -130,10 +130,10 @@ wait statement not allowed in a sensitized process
 wait statement not allowed in a sensitized process
 センシティビティリストのある process 文では wait 文は使用できません．
 もしこの process 文が組合せ回路や順序回路を意図して書いたものであれば，wait 文は使用できないので取り除いてください（wait 文はテストベンチ専用です）．もしテストベンチで入力波形を与える意図であるならば，センシティビティリストは不要ですので，process begin を用いてください．
-no default binding for instantiation of component
-no default binding for instantiation of component "●●"
-ある回路が他の回路をインスタンス化しようとしていますが，その回路が見つかりません．
-必要な全てのファイルが GGFront 上で Source File(s) として指定されているかを確認してください．また，entity 宣言や architecture 宣言における回路名が正しいかどうかを確認してください．他のエラーが原因で回路が正しく認識されていない場合もあります．
+instance .* of component .* is not bound
+instance "▲▲" of component "●●" is not bound
+ある回路が他の回路（●●）をインスタンス化しようとしていますが，その回路が見つかりません．
+必要な全てのファイルが GGFront 上で Source File(s) として指定されているかを確認してください．また，entity 宣言や architecture 宣言における回路名が正しいかどうかを確認してください．
 no function declarations for operator
 no function declarations for operator "●●"
 演算子の定義が見つかりません．
@@ -166,3 +166,23 @@ conditional signal assignment not allowed
 conditional signal assignment not allowed in before vhdl08
 条件つき代入文が，順次処理文の中で使われています．これが認められるのは VHDL-2008 規格以降です．
 条件つき代入（値1 when 条件 else 値2）は同時処理文専用です．process 文の中で場合分けをする場合は if 文を使ってください．
+type .* does not define character
+type ●● does not define character '▲'
+文字列リテラル " " の中に定義されていない文字が含まれています．
+std_logic_vector の定数では，" " の中は原則として2進数で記述してください．ビット幅が4の倍数のときに限り，" " の前に x をつけることで，16進数での記載も可能です．
+can't match character literal .* with type
+can't match character literal '▲' with type ●●
+文字リテラル ' ' の中に定義されていない文字が含まれています．
+std_logic の定数では，' ' の中は原則として 0 か 1 を記述してください．まれに不定値 x などを使う場合もありますが，意図を理解して使用してください．
+unexpected token ''' in a primary
+unexpected token ''' in a primary
+文字リテラル ' ' の中に複数の文字が含まれています．
+std_logic の定数では，' ' の中は原則として 0 か 1 を記述してください．std_logic_vector の定数を意図しているのでしたら，' ' ではなく " " で囲んでください．
+missing ";" at end of statement
+missing ";" at end of statement
+文末の ; がありません．
+; のつけ忘れがないか確認してください．VHDL では end ●● の後にもセミコロンが必要です．先行する他のエラーが原因で，このエラーが出る場合もあります．
+several sources for unresolved signal
+several sources for unresolved signal
+（典型的には列挙型の）信号に2ヶ所以上から代入されています．
+問題のある信号名が for signal のところに記載されていますので，確認してください．順序回路の現状態と次状態との間で取り違えが起きている可能性があります．

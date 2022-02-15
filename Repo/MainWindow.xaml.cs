@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using Microsoft.Win32;
@@ -133,33 +133,6 @@ namespace GGFront
             newItem.Name = FileName;
             newItem.Selected = false;
             sourceCollection.Add(newItem);
-        }
-
-        // ソースの順序を変更するボタン（▲▼）が押された場合
-        private void MoveSource_Click(object sender, RoutedEventArgs e)
-        {
-            bool dirUp = (((Button)sender).Name.Equals("btnUpSource"));
-            bool movable = false;
-
-            for (int i = 0; i < sourceCollection.Count; i++)
-            {
-                int ii = (dirUp) ? i : sourceCollection.Count - 1 - i;
-                if (sourceCollection[ii].Selected)
-                {
-                    if (movable)
-                    {
-                        SourceItem item = sourceCollection[ii];
-                        sourceCollection.RemoveAt(ii);
-                        int jj = (dirUp) ? ii - 1 : ii + 1;
-                        sourceCollection.Insert(jj, item);
-                    }
-                }
-                else if (!movable)
-                {
-                    movable = true;
-                }
-            }
-            UpdateHierarchy();
         }
 
         // ソースを削除するボタン（Remove）またはDelキーが押された場合

@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System.Diagnostics;

@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -46,9 +46,9 @@ namespace GGFront
         // GHDLを何度か実行して，VHDLのコンパイルとシミュレーションを行う
         public static void CompileAndSimulate()
         {
-            int numSources = 0;
+            int numSources = 0, numErrors = 0;
             string args;
-            const string compileOption = "-fexplicit --ieee=synopsys --warn-default-binding";
+            const string compileOption = "-fexplicit -fsynopsys";
             string simulationOption = "--vcd=wave.vcd --ieee-asserts=disable --stop-time=" + settings.simLimit;
             List<VHDLSource> sources = new List<VHDLSource>();
 
@@ -59,9 +59,10 @@ namespace GGFront
             if (!currentProject.Check())
                 return;
 
-            // 入力のリストアップと整形
+            // 入力のリストアップ・整形・解析
             args = "-a " + compileOption;
             CleanWorkDir();
+            GHDLResult analResult = null;
             foreach (string FileName in currentProject.sourceFiles)
             {
                 numSources += 1;
@@ -77,24 +78,36 @@ namespace GGFront
                     return;
                 }
                 sources.Add(newSource);
-                args += " " + newSource.FileName.Internal;
-            }
-
-            // ソースの解析とその結果の整形
-            GHDLResult analResult = ExecToolAndGetResult(GetGHDLPath(), args);
-            if (analResult == null)
-                return;
-            if (analResult.code == 0 && analResult.message != "")
-            {
-                // entityが見つからない警告が出ているが，ソースの指定順の問題かもしれない．再実行する．
-                analResult = ExecToolAndGetResult(GetGHDLPath(), args);
+                args = "-a " + compileOption + " " + newSource.FileName.Internal;
+                analResult = ExecToolAndGetResult(GetGHDLPath(), args, analResult);
                 if (analResult == null)
                     return;
+                if (analResult.code != 0)
+                    numErrors += 1;
             }
-            analResult.RestoreFileName(currentProject.sourceFiles);
-            if (analResult.code != 0)
+
+            // 解析にエラーがなければ，再解析（Elaborate）を行う
+            if (numErrors == 0)
             {
-                Warn("解析中にエラーが発生しました．詳しくはログを参照してください．");
+                args = "-e " + compileOption + " " + currentProject.topModule;
+                analResult = ExecToolAndGetResult(GetGHDLPath(), args, analResult);
+                if (analResult == null)
+                    return;
+                if (analResult.code != 0)
+                    numErrors = -1;
+            }
+
+            // ソースの解析結果の整形
+            analResult.RestoreFileName(currentProject.sourceFiles);
+            if (numErrors != 0)
+            {
+                string errorIn;
+                if (numErrors == -1)
+                    errorIn = "ファイル全体";
+                else
+                    errorIn = numErrors + "個のファイル";
+                Warn(errorIn + "の解析中にエラーが発生しました．詳しくはログを参照してください．");
+                analResult.code = 1;
                 analResult.ShowMessage();
                 return;
             }
@@ -164,11 +177,12 @@ namespace GGFront
         }
 
         // 外部プログラムを実行（出力を必要とする場合）
-        public static GHDLResult ExecToolAndGetResult(string FileName, string args)
+        public static GHDLResult ExecToolAndGetResult(string FileName, string args, GHDLResult result = null)
         {
-            String outMessage = "";
-            String errMessage = "";
-            GHDLResult result = new GHDLResult();
+            string outMessage = "";
+            string errMessage = "";
+            if (result == null)
+                result = new GHDLResult();
             Process p = ExecTool(FileName, args, true);
             if (p == null)
                 return null;
@@ -192,7 +206,9 @@ namespace GGFront
                 return null;
             }
             result.code = p.ExitCode;
-            result.message = outMessage + errMessage;
+            if (! string.IsNullOrEmpty(result.message) && (outMessage != "" || errMessage != ""))
+                result.message += "\n";
+            result.message += outMessage + errMessage;
             p.Close();
 
             return result;

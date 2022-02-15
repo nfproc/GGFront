@@ -1,5 +1,5 @@
 ﻿<!-- GGFront: A GHDL/GTKWave GUI Frontend
-     Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
+     Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
      *******************************************************************-->
 
 <Window x:Class="GGFront.MainWindow"
@@ -64,9 +64,7 @@
         </Grid>
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
@@ -85,10 +83,8 @@
                     </Style>
                 </ListBox.ItemContainerStyle>
             </ListBox>
-            <Button x:Name="btnAddSource" Content="Add" Grid.Column="1" HorizontalAlignment="Left" Margin="5,0,20,5" VerticalAlignment="Bottom" Width="75" Click="AddSource_Click" Grid.Row="1"/>
-            <Button x:Name="btnRemoveSource" Content="Remove" Grid.Column="1" HorizontalAlignment="Left" Margin="5,5,20,0" VerticalAlignment="Top" Width="75" Click="RemoveSource_Click" Grid.Row="2"/>
-            <Button x:Name="btnUpSource" Content="▲" Grid.Column="1" HorizontalAlignment="Left" Margin="25,0,20,0" VerticalAlignment="Top" Width="35" Click="MoveSource_Click" Grid.Row="0" FontSize="10"/>
-            <Button x:Name="btnDownSource" Content="▼" Grid.Column="1" HorizontalAlignment="Left" Margin="25,0,20,0" VerticalAlignment="Bottom" Width="35" Click="MoveSource_Click" Grid.Row="3" FontSize="10"/>
+            <Button x:Name="btnAddSource" Content="Add" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,10,5" VerticalAlignment="Bottom" Width="75" Click="AddSource_Click" Grid.Row="0"/>
+            <Button x:Name="btnRemoveSource" Content="Remove" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5,10,0" VerticalAlignment="Top" Width="75" Click="RemoveSource_Click" Grid.Row="1"/>
         </Grid>
         <Grid Grid.Row="3" Margin="0,5,0,0">
             <Grid.RowDefinitions>
@@ -127,10 +123,10 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <Button x:Name="btnSetAsTop" Content="Set as Top" Grid.Column="1" HorizontalAlignment="Left" Margin="5,0,20,5" VerticalAlignment="Top" Width="75" Click="SetAsTop_Click"/>
-            <Button x:Name="btnRefreshHiearchy" Content="Refresh" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="5,5,20,5" VerticalAlignment="Top" Width="75" Click="Refresh_Click"/>
+            <Button x:Name="btnSetAsTop" Content="Set as Top" Grid.Column="1" HorizontalAlignment="Left" Margin="10,0,10,5" VerticalAlignment="Top" Width="75" Click="SetAsTop_Click"/>
+            <Button x:Name="btnRefreshHiearchy" Content="Refresh" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5" VerticalAlignment="Top" Width="75" Click="Refresh_Click"/>
         </Grid>
-        <Grid Grid.Row="5" Margin="0,10">
+        <Grid Grid.Row="5" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
@@ -139,9 +135,10 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="btnCompile" Content="Compile and Simulate" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0" Grid.Column="1" Click="Compile_Click"/>
-            <Button x:Name="btnViewWave" Content="View Waveform" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.Column="2" Margin="5,0" Click="ViewWave_Click"/>
-            <Button x:Name="btnReset" Content="Reset Project" HorizontalAlignment="Left" Margin="5,0,0,0" Grid.Column="3" Click="Reset_Click" Height="20" VerticalAlignment="Top"/>
+            <Button x:Name="btnCompile" Content="Compile and Simulate" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0,5,10" Grid.Column="1" Click="Compile_Click"/>
+            <Button x:Name="btnViewWave" Content="View Waveform" HorizontalAlignment="Left" VerticalAlignment="Top" Grid.Column="2" Margin="5,0,5,10" Click="ViewWave_Click"/>
+            <Button x:Name="btnReset" Content="Reset Project" HorizontalAlignment="Left" Margin="5,0,0,10" Grid.Column="3" Click="Reset_Click" Height="20" VerticalAlignment="Top"/>
+            <TextBlock x:Name="lblMessage" Text="" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,0,0" VerticalAlignment="Bottom" Background="#FFFFFFA0" Grid.ColumnSpan="5" Visibility="Hidden"/>
         </Grid>
     </Grid>
 </Window>

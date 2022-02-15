@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2021 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -94,6 +94,7 @@ namespace GGFront
         {
             ErrorWindow win = new ErrorWindow();
             string messageForCopy = "";
+            FontFamily consolas = new FontFamily("Consolas");
             win.Title = ((code != 0) ? "エラー" : "警告") + " [" + generatedDate + "]";
             win.Height = Util.settings.errorWindowHeight;
             win.Width = Util.settings.errorWindowWidth;
@@ -101,10 +102,25 @@ namespace GGFront
             win.txtError.FontSize = Util.settings.errorWindowTextSize;
 
             string[] lines = message.Replace("\r\n", "\n").Split('\n');
+            bool[] isCode = new bool[lines.Length];
+            for (int i = 1; i < descs.Length; i++)
+            {
+                if (Regex.IsMatch(lines[i], @"^\s*\^"))
+                {
+                    isCode[i] = true;
+                    isCode[i - 1] = true;
+                }
+            }
             for (int i = 0; i < descs.Length; i++)
             {
                 messageForCopy += lines[i] + "\r\n";
                 Run newRun = new Run(lines[i] + "\n");
+                if (isCode[i])
+                {
+                    newRun.FontFamily = consolas;
+                    newRun.Foreground = Brushes.Brown;
+
+                }
                 if (descs[i] != null)
                 {
                     TextBlock tb = new TextBlock();
