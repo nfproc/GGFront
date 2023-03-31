@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -51,6 +51,8 @@ namespace GGFront
             const string compileOption = "-fexplicit -fsynopsys";
             string simulationOption = "--vcd=wave.vcd --ieee-asserts=disable --stop-time=" + settings.simLimit;
             List<VHDLSource> sources = new List<VHDLSource>();
+            List<List<int>> lineNumber = new List<List<int>>();
+            Dictionary<string, VHDLSource.VHDLEnumeration> enumSignals = new Dictionary<string, VHDLSource.VHDLEnumeration>();
 
             // 入力が空でないかをチェック
             if (!settings.Check())
@@ -78,6 +80,10 @@ namespace GGFront
                     return;
                 }
                 sources.Add(newSource);
+                lineNumber.Add(newSource.origLineNumber);
+                foreach (KeyValuePair<string, VHDLSource.VHDLEnumeration> en in newSource.enumSignals)
+                    enumSignals[en.Key] = en.Value;
+
                 args = "-a " + compileOption + " " + newSource.FileName.Internal;
                 analResult = ExecToolAndGetResult(GetGHDLPath(), args, analResult);
                 if (analResult == null)
@@ -98,7 +104,7 @@ namespace GGFront
             }
 
             // ソースの解析結果の整形
-            analResult.RestoreFileName(currentProject.sourceFiles);
+            analResult.RestoreFileName(currentProject.sourceFiles, lineNumber);
             if (numErrors != 0)
             {
                 string errorIn;
@@ -124,7 +130,7 @@ namespace GGFront
             GHDLResult simResult = ExecToolAndGetResult(GetGHDLPath(), args);
             if (simResult == null)
                 return;
-            simResult.RestoreFileName(currentProject.sourceFiles);
+            simResult.RestoreFileName(currentProject.sourceFiles, lineNumber);
             if (simResult.violateAssertion)
             {
                 String timeString = String.Format("{0:#,0.###}", simResult.simTime / 1000000.0);
@@ -142,17 +148,11 @@ namespace GGFront
             }
 
             // 出力ファイル（波形・テストベンチ出力）のコピー
-            try
-            {
-                File.Copy(workDir + "wave.vcd", currentProject.wavePath, true);
-                StreamWriter sw = new StreamWriter(currentProject.wavePath, true, Encoding.GetEncoding("ISO-8859-1"));
-                sw.WriteLine("#" + simResult.simTime);
-                sw.Close();
-            }
-            catch (IOException)
-            {
-                Warn("波形ファイルのコピー中にエラーが発生しました．");
-            }
+            VCDResult wave = new VCDResult(workDir + "wave.vcd", simResult.simTime, enumSignals);
+            wave.WriteTo(currentProject.wavePath);
+            if (! wave.isValid)
+                Warn(wave.content);
+
             foreach (VHDLSource source in sources)
             {
                 source.CopyFromWorkDirectory(workDir);

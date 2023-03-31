@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -29,17 +29,28 @@ namespace GGFront
             generatedDate = DateTime.Now.ToString();
         }
 
-        private string GetOriginalFileName(List<string> org, Match match)
+        private string GetOriginalFileName(List<string> org, List<List<int>> lineNumber, Match match)
         {
-            string origFile = org[int.Parse(match.Groups[1].Value) - 1];
+            int fileID = int.Parse(match.Groups[1].Value) - 1;
+            string origFile = org[fileID];
             string result = Path.GetFileName(origFile);
-            result += " " + match.Groups[2].Value + "行";
-            if (match.Groups[3].Value != "")
-                result += " " + match.Groups[3].Value + "文字";
+
+            int fileLine = int.Parse(match.Groups[2].Value);
+            int origLine = lineNumber[fileID][fileLine];
+            if (origLine != -1)
+            {
+                result += " " + origLine + "行";
+                if (match.Groups[3].Value != "")
+                    result += " " + match.Groups[3].Value + "文字";
+            }
+            else
+            {
+                result += " GGFrontの内部エラー";
+            }
             return result;
         }
 
-        public void RestoreFileName(List<string> org)
+        public void RestoreFileName(List<string> org, List<List<int>> lineNumber)
         {
             if (message == "")
                 return;
@@ -60,7 +71,7 @@ namespace GGFront
                 match = Regex.Match(line, @"^src(\d+)\.vhd:(\d+):(\d+):(warning:)?(.*)");
                 if (match.Success)
                 {
-                    line = "[" + GetOriginalFileName(org, match);
+                    line = "[" + GetOriginalFileName(org, lineNumber, match);
                     if (match.Groups[4].Value != "")
                         line += " (警告)";
                     line += "] " + match.Groups[5].Value;
@@ -68,7 +79,7 @@ namespace GGFront
                 }
                 match = Regex.Match(line, @"at src(\d+)\.vhd:(\d+):?(\d*)$");
                 if (match.Success)
-                    line = line.Substring(0, match.Index + 3) + "[" + GetOriginalFileName(org, match) + "]";
+                    line = line.Substring(0, match.Index + 3) + "[" + GetOriginalFileName(org, lineNumber, match) + "]";
                 newMessage += line + "\r\n";
 
                 // シミュレーション終了時刻の取得

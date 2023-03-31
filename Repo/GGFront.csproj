@@ -71,6 +71,7 @@
     <Compile Include="EntityHierarchy.cs" />
     <Compile Include="GHDLResult.cs" />
     <Compile Include="LocalFiles.cs" />
+    <Compile Include="VCDResult.cs" />
     <Compile Include="VHDLSource.cs" />
     <Compile Include="ErrorWindow.xaml.cs">
       <DependentUpon>ErrorWindow.xaml</DependentUpon>

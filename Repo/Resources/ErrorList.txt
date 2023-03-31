@@ -178,11 +178,35 @@ unexpected token ''' in a primary
 unexpected token ''' in a primary
 文字リテラル ' ' の中に複数の文字が含まれています．
 std_logic の定数では，' ' の中は原則として 0 か 1 を記述してください．std_logic_vector の定数を意図しているのでしたら，' ' ではなく " " で囲んでください．
-missing ";" at end of statement
-missing ";" at end of statement
+missing ";" at end of
+missing ";" at end of ●●
 文末の ; がありません．
 ; のつけ忘れがないか確認してください．VHDL では end ●● の後にもセミコロンが必要です．先行する他のエラーが原因で，このエラーが出る場合もあります．
 several sources for unresolved signal
 several sources for unresolved signal
 （典型的には列挙型の）信号に2ヶ所以上から代入されています．
 問題のある信号名が for signal のところに記載されていますので，確認してください．順序回路の現状態と次状態との間で取り違えが起きている可能性があります．
+entity .* was not analysed
+entity '●●' was not analysed
+architecture 宣言に対応する entity 宣言が見つかりません．
+entity 宣言を書き忘れていないか，entity 宣言の中で他のエラーが出ていないかを確認してください．entity 宣言か architecture 宣言のどちらかで，回路名を書き間違えている可能性もあります．
+can't match string literal with type
+can't match string literal with type
+定数リテラルの型が一致していません．
+" " で囲むリテラルの型は通常 std_logic_vector です．これを他の型に代入しようとするとエラーになります．代入先が std_logic なら，' ' で囲んでください．代入先が列挙型なら，" " で囲む必要はありません．
+"<=" or ":=" expected instead of
+"<=" or ":=" expected instead of '●●'
+代入文の左辺の後に <= や := 以外が使われています．
+信号への代入には <= を，変数への代入には := を使ってください．
+'then' is expected here
+'then' is expected here
+if 文や elsif 文の条件の後に then がありません．
+then を書き忘れたり，誤って begin にしてしまうと，このエラーが出ます．書き忘れ・書き間違えがないか確認してください．
+name expected here, found
+name expected here, found '●●'
+文法エラーです．識別子が来るべきところで，それ以外のものが見つかりました．
+センシティビティリスト内に，カンマの過剰や，識別子として使えないキーワード（begin など）が含まれていないか確認してください．
+"end" must be followed by 'process'
+"end" must be followed by 'process'
+end のあとに process が来るべき場所で，そうなっていません．
+end process; を書き忘れたか，process の中で if 文や case 文が正しく閉じられていない可能性があります．●●～end ●●; の対応が適切に取れているかどうか確認してください．
