@@ -23,36 +23,41 @@ namespace GGFront
         public VCDResult(string SourceName, long simTime, Dictionary<string, VHDLSource.VHDLEnumeration> enumSignals)
         {
             Dictionary<string, VHDLSource.VHDLEnumeration> enumIdents = new Dictionary<string, VHDLSource.VHDLEnumeration>();
-            content = "";
             try
             {
+                FileInfo fi = new FileInfo(SourceName);
+                StringBuilder c = new StringBuilder((int)fi.Length);
                 StreamReader sr = new StreamReader(SourceName, Encoding.GetEncoding("ISO-8859-1"));
                 Match match;
                 string line;
                 while ((line = sr.ReadLine()) != null)
                 {
-                    // 列挙型信号に対応する integer の宣言
-                    match = Regex.Match(line, @"^\$var integer 32 ([^ ]+) ([a-z0-9_]+)");
-                    if (match.Success && enumSignals.ContainsKey(match.Groups[2].Value))
+                    if (line.Length > 300)
                     {
-                        string ident = match.Groups[1].Value;
-                        VHDLSource.VHDLEnumeration en = enumSignals[match.Groups[2].Value];
-                        enumIdents[ident] = en;
-                        line = $"$var string 1 {ident} {en.SignalName} $end";
+                        // 列挙型信号に対応する integer の宣言
+                        match = Regex.Match(line, @"^\$var integer 32 ([^ ]+) ([a-z0-9_]+)");
+                        if (match.Success && enumSignals.ContainsKey(match.Groups[2].Value))
+                        {
+                            string ident = match.Groups[1].Value;
+                            VHDLSource.VHDLEnumeration en = enumSignals[match.Groups[2].Value];
+                            enumIdents[ident] = en;
+                            line = $"$var string 1 {ident} {en.SignalName} $end";
+                        }
+                        // 上記 integer の信号の値変化
+                        match = Regex.Match(line, @"^b([01]{32}) ([^ ]+)");
+                        if (match.Success && enumIdents.ContainsKey(match.Groups[2].Value))
+                        {
+                            int index = Convert.ToInt32(match.Groups[1].Value, 2);
+                            string ident = match.Groups[2].Value;
+                            string value = enumIdents[ident].Values[index];
+                            line = $"s{value} {ident}";
+                        }
                     }
-                    // 上記 integer の信号の値変化
-                    match = Regex.Match(line, @"b([01]+) ([^ ]+)");
-                    if (match.Success && enumIdents.ContainsKey(match.Groups[2].Value))
-                    {
-                        int index = Convert.ToInt32(match.Groups[1].Value, 2);
-                        string ident = match.Groups[2].Value;
-                        string value = enumIdents[ident].Values[index];
-                        line = $"s{value} {ident}";
-                    }
-                    content += line + "\n";
+                    c.Append(line).Append("\n");
                 }
                 // シミュレーション終了時間の追記
-                content += "#" + simTime.ToString() + "\n";
+                c.Append("#").Append(simTime.ToString()).Append("\n");
+                content = c.ToString();
                 sr.Close();
             }
             catch (IOException)
