@@ -142,7 +142,7 @@ namespace GGFront
                                 newSignal.Values = enumTypes[typeName];
                                 enumSignals[tempName] = newSignal;
                                 content += $"signal {tempName} : integer;\n";
-                                origLineNumber.Add(-1);
+                                origLineNumber.Add(-2);
                             }
                         }
 
@@ -156,7 +156,7 @@ namespace GGFront
                             if (sig.Value.Entity != currentEntity)
                                 continue;
                             content += $"{sig.Key} <= {sig.Value.TypeName}'pos({sig.Value.SignalName});\n";
-                            origLineNumber.Add(-1);
+                            origLineNumber.Add(-2);
                         }
                     }
 
@@ -164,6 +164,7 @@ namespace GGFront
                     origLineNumber.Add(srcLineNumber);
                 }
                 sr.Close();
+                origLineNumber.Add(-1);
                 isValid = true;
             }
             catch (IOException)

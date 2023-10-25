@@ -37,14 +37,17 @@ namespace GGFront
 
             int fileLine = int.Parse(match.Groups[2].Value);
             int origLine = lineNumber[fileID][fileLine];
-            if (origLine != -1)
+            if (origLine >= 0)
             {
                 result += " " + origLine + "行";
                 if (match.Groups[3].Value != "")
                     result += " " + match.Groups[3].Value + "文字";
             }
-            else
+            else if (origLine == -1)
             {
+                result += " ファイル末尾";
+            }
+            else {
                 result += " GGFrontの内部エラー";
             }
             return result;

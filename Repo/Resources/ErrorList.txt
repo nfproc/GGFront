@@ -210,3 +210,7 @@ name expected here, found '●●'
 "end" must be followed by 'process'
 end のあとに process が来るべき場所で，そうなっていません．
 end process; を書き忘れたか，process の中で if 文や case 文が正しく閉じられていない可能性があります．●●～end ●●; の対応が適切に取れているかどうか確認してください．
+infinite loop for this process without a wait statement
+infinite loop for this process without a wait statement
+センシティビティリストのない process の中に wait 文がないので，この process は無限ループになる可能性があります．
+この警告がテストベンチ内で発生しているなら，当該 process 内で，wait 文を使って入力パターンを記述してください．そうでないなら，適切なセンシティビティリストを process 文に加えてください．
