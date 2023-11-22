@@ -7,10 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Media;
 
 namespace GGFront
 {
@@ -32,26 +28,23 @@ namespace GGFront
                 string line;
                 while ((line = sr.ReadLine()) != null)
                 {
-                    if (line.Length > 300)
+                    // 列挙型信号に対応する integer の宣言
+                    match = Regex.Match(line, @"^\$var integer 32 ([^ ]+) ([a-z0-9_]+)");
+                    if (match.Success && enumSignals.ContainsKey(match.Groups[2].Value))
                     {
-                        // 列挙型信号に対応する integer の宣言
-                        match = Regex.Match(line, @"^\$var integer 32 ([^ ]+) ([a-z0-9_]+)");
-                        if (match.Success && enumSignals.ContainsKey(match.Groups[2].Value))
-                        {
-                            string ident = match.Groups[1].Value;
-                            VHDLSource.VHDLEnumeration en = enumSignals[match.Groups[2].Value];
-                            enumIdents[ident] = en;
-                            line = $"$var string 1 {ident} {en.SignalName} $end";
-                        }
-                        // 上記 integer の信号の値変化
-                        match = Regex.Match(line, @"^b([01]{32}) ([^ ]+)");
-                        if (match.Success && enumIdents.ContainsKey(match.Groups[2].Value))
-                        {
-                            int index = Convert.ToInt32(match.Groups[1].Value, 2);
-                            string ident = match.Groups[2].Value;
-                            string value = enumIdents[ident].Values[index];
-                            line = $"s{value} {ident}";
-                        }
+                        string ident = match.Groups[1].Value;
+                        VHDLSource.VHDLEnumeration en = enumSignals[match.Groups[2].Value];
+                        enumIdents[ident] = en;
+                        line = $"$var string 1 {ident} {en.SignalName} $end";
+                    }
+                    // 上記 integer の信号の値変化
+                    match = Regex.Match(line, @"^b([01]+) ([^ ]+)");
+                    if (match.Success && enumIdents.ContainsKey(match.Groups[2].Value))
+                    {
+                        int index = Convert.ToInt32(match.Groups[1].Value, 2);
+                        string ident = match.Groups[2].Value;
+                        string value = enumIdents[ident].Values[index];
+                        line = $"s{value} {ident}";
                     }
                     c.Append(line).Append("\n");
                 }
