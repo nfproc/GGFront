@@ -48,7 +48,6 @@ namespace GGFront
             components = new List<Component>();
             inFiles = new List<VHDLDataFile>();
             outFiles = new List<VHDLDataFile>();
-            content = "";
             FileName = new VHDLDataFile
             {
                 Original = SourceName,
@@ -62,17 +61,29 @@ namespace GGFront
 
             try
             {
+                FileInfo fi = new FileInfo(SourceName);
+                StringBuilder c = new StringBuilder((int)fi.Length);
                 StreamReader sr = new StreamReader(SourceName, Encoding.GetEncoding("ISO-8859-1"));
                 Match match;
                 string line;
                 string currentEntity = "", currentArchitecture = "";
                 int srcLineNumber = 0;
-                while ((line = sr.ReadLine()) != null)
+                while ((line = ReadLineWithoutComments(sr)) != null)
                 {
                     srcLineNumber++;
-                    // コメントを削除
-                    if (line.IndexOf("--") != -1)
-                        line = line.Substring(0, line.IndexOf("--"));
+                    // 複数行にまたがる type, signal 宣言
+                    match = Regex.Match(line, @"(type\s|signal\s)[^;]+$", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        string newLine;
+                        while ((newLine = ReadLineWithoutComments(sr)) != null)
+                        {
+                            line = line + " " + newLine;
+                            srcLineNumber++;
+                            if (newLine.IndexOf(";") != -1)
+                                break;
+                        }
+                    }
 
                     // entity 宣言（階層構造作成用）
                     match = Regex.Match(line, @"entity\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
@@ -116,32 +127,38 @@ namespace GGFront
                     }, RegexOptions.IgnoreCase);
 
                     // 列挙型の宣言
-                    match = Regex.Match(line, @"type\s+([a-z0-9_]+)\s+is\s+\((\s*[a-z0-9_]+\s*,?)+\)", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, @"type\s+([a-z0-9_]+)\s+is\s+\((\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*)\)", RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
                         string typeName = match.Groups[1].Value.ToLower();
                         List<string> values = new List<string>();
-                        foreach (Capture c in match.Groups[2].Captures)
-                            values.Add(c.Value.Trim(trimChars));
+                        foreach (Capture cp in match.Groups[2].Captures)
+                            values.Add(cp.Value.Trim(trimChars));
+                        values.Add(match.Groups[3].Value.Trim(trimChars));
                         enumTypes[typeName] = values;
                     }
                     // 列挙型信号の宣言
-                    match = Regex.Match(line, @"signal\s(\s*[a-z0-9_]+\s*,?)+:\s+([a-z0-9_]+)", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, @"signal\s(\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*):\s+([a-z0-9_]+)", RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
-                        string typeName = match.Groups[2].Value.ToLower();
+                        string typeName = match.Groups[3].Value.ToLower();
                         if (enumTypes.ContainsKey(typeName))
                         {
-                            foreach (Capture c in match.Groups[1].Captures)
+                            List<string> signalNames = new List<string>();
+                            foreach (Capture cp in match.Groups[1].Captures)
+                                signalNames.Add(cp.Value.Trim(trimChars));
+                            signalNames.Add(match.Groups[2].Value.Trim(trimChars));
+
+                            foreach (string s in signalNames)
                             {
                                 string tempName = $"gf_src{SourceIndex}_enum{enumSignals.Count}";
                                 VHDLEnumeration newSignal = new VHDLEnumeration();
                                 newSignal.Entity = currentEntity;
                                 newSignal.TypeName = typeName;
-                                newSignal.SignalName = c.Value.ToLower().Trim(trimChars);
+                                newSignal.SignalName = s;
                                 newSignal.Values = enumTypes[typeName];
                                 enumSignals[tempName] = newSignal;
-                                content += $"signal {tempName} : integer;\n";
+                                c.Append($"signal {tempName} : integer;\n");
                                 origLineNumber.Add(-2);
                             }
                         }
@@ -155,16 +172,17 @@ namespace GGFront
                         {
                             if (sig.Value.Entity != currentEntity)
                                 continue;
-                            content += $"{sig.Key} <= {sig.Value.TypeName}'pos({sig.Value.SignalName});\n";
+                            c.Append($"{sig.Key} <= {sig.Value.TypeName}'pos({sig.Value.SignalName});\n");
                             origLineNumber.Add(-2);
                         }
                     }
 
-                    content += line + "\n";
+                    c.Append(line).Append("\n");
                     origLineNumber.Add(srcLineNumber);
                 }
                 sr.Close();
                 origLineNumber.Add(-1);
+                content = c.ToString();
                 isValid = true;
             }
             catch (IOException)
@@ -177,6 +195,55 @@ namespace GGFront
                 content = "VHDLソース読み込み中の予期せぬエラー．\n内容: " + e.ToString();
                 isValid = false;
             }
+        }
+
+        public string ReadLineWithoutComments (StreamReader sr)
+        {
+            string line = sr.ReadLine();
+            if (line == null)
+                return null;
+            if (line.IndexOf("--") != -1)
+            {
+                bool inLiteral = false;
+                int posString = 0;
+                while (true)
+                {
+                    int quote = line.IndexOf("\"", posString);
+                    int twoQuote = line.IndexOf("\"\"", posString);
+                    int twoDash = line.IndexOf("--", posString);
+                    int quoteChar = line.IndexOf("'\"'", posString);
+                    if (twoDash == -1) // -- が見つからなくなったらそこまで
+                    {
+                        break;
+                    }
+                    else if (twoDash < quote || quote == -1) // -- が先に見つかった
+                    {
+                        if (!inLiteral)
+                        {
+                            line = line.Substring(0, twoDash); // 文字列中でなければ後続を削除
+                            break;
+                        }
+                        posString = twoDash + 1;
+                    }
+                    else // " が先に見つかった
+                    {
+                        posString = quote + 1;
+                        if (!inLiteral)
+                        {
+                            if (quote != quoteChar + 1) // '"' は除外
+                                inLiteral = true;
+                        }
+                        else
+                        {
+                            if (quote != twoQuote) // 文字列中の "" は除外
+                                inLiteral = false;
+                            else
+                                posString = quote + 2;
+                        }
+                    }
+                }
+            }
+            return line.TrimEnd();
         }
 
         // ソースファイルおよびテストベンチから読み込まれるデータをコピーする
