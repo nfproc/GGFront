@@ -46,6 +46,7 @@ namespace GGFront
         // GHDLを何度か実行して，VHDLのコンパイルとシミュレーションを行う
         public static void CompileAndSimulate()
         {
+            Stopwatch swAll, swGHDL, swOut;
             int numSources = 0, numErrors = 0;
             string args;
             const string compileOption = "-fexplicit -fsynopsys";
@@ -61,7 +62,12 @@ namespace GGFront
             if (!currentProject.Check())
                 return;
 
+            swAll = new Stopwatch();
+            swGHDL = new Stopwatch();
+            swOut = new Stopwatch();
+
             // 入力のリストアップ・整形・解析
+            swAll.Start();
             args = "-a " + compileOption;
             CleanWorkDir();
             GHDLResult analResult = null;
@@ -85,7 +91,9 @@ namespace GGFront
                     enumSignals[en.Key] = en.Value;
 
                 args = "-a " + compileOption + " " + newSource.FileName.Internal;
+                swGHDL.Start();
                 analResult = ExecToolAndGetResult(GetGHDLPath(), args, analResult);
+                swGHDL.Stop();
                 if (analResult == null)
                     return;
                 if (analResult.code != 0)
@@ -127,10 +135,13 @@ namespace GGFront
 
             // シミュレーションとその結果の整形
             args = "-r " + compileOption + " " + currentProject.topModule + " " + simulationOption;
+            swGHDL.Start();
             GHDLResult simResult = ExecToolAndGetResult(GetGHDLPath(), args);
+            swGHDL.Stop();
             if (simResult == null)
                 return;
             simResult.RestoreFileName(currentProject.sourceFiles, lineNumber);
+            swAll.Stop();
             if (simResult.violateAssertion)
             {
                 String timeString = String.Format("{0:#,0.###}", simResult.simTime / 1000000.0);
@@ -148,6 +159,7 @@ namespace GGFront
             }
 
             // 出力ファイル（波形・テストベンチ出力）のコピー
+            swOut.Start();
             VCDResult wave = new VCDResult(workDir + "wave.vcd", simResult.simTime, enumSignals);
             wave.WriteTo(currentProject.wavePath);
             if (! wave.isValid)
@@ -159,6 +171,11 @@ namespace GGFront
                 if (! source.isValid)
                     Warn(source.content);
             }
+            swOut.Stop();
+            string timeStringReal = "シミュレーションに " + swAll.Elapsed.TotalMilliseconds + " ミリ秒かかりました．\n";
+            timeStringReal += "そのうち GHDL の実行に " + swGHDL.Elapsed.TotalMilliseconds + " ミリ秒かかりました．\n";
+            timeStringReal += "シミュレーション後の結果の整形に " + swOut.Elapsed.TotalMilliseconds + " ミリ秒かかりました．";
+            Info(timeStringReal);
         }
 
         // work ディレクトリを削除
