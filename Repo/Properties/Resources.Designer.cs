@@ -19,7 +19,7 @@ namespace GGFront.Properties {
     // または Visual Studio のようなツールを使用して自動生成されました。
     // メンバーを追加または削除するには、.ResX ファイルを編集して、/str オプションと共に
     // ResGen を実行し直すか、または VS プロジェクトをビルドし直します。
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -69,8 +69,9 @@ namespace GGFront.Properties {
         ///●● is expected instead of ◎◎
         ///文法エラーです．本来ならば●●が必要なところに◎◎と記載されています．
         ///カンマ，コロンなどの記号やキーワード（is など）の打ち忘れ，または過剰，その他スペルミスなどがないか確認してください．また，識別子（信号名など）に本来使えない予約語（begin など）を使ってしまった場合もこの類のエラーが出ます．
-        ///expected after identifier \(found:
-        ///●● or ◎◎ expected after identifier (foun [残りの文字列は切り詰められました]&quot;; に類似しているローカライズされた文字列を検索します。
+        ///expected after identifier
+        ///●● or ◎◎ expected after identifier (found: ▲▲)
+        ///文 [残りの文字列は切り詰められました]&quot;; に類似しているローカライズされた文字列を検索します。
         /// </summary>
         internal static string ErrorList {
             get {

@@ -1,11 +1,9 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 
 namespace GGFront
 {
@@ -14,7 +12,7 @@ namespace GGFront
     /// </summary>
     public partial class ErrorWindow : Window
     {
-        public string messageForCopy;
+        public string MessageForCopy;
         public ErrorWindow()
         {
             InitializeComponent();
@@ -50,14 +48,14 @@ namespace GGFront
                     (line.ToolTip as TextBlock).FontSize = size;
                 }
             }
-            Util.settings.errorWindowTextSize = size;
-            Util.settings.Save();
+            Util.Settings.ErrorWindowTextSize = size;
+            Util.Settings.Save();
         }
 
         // Copy to Clipboard ボタンがクリックされたとき
         private void Copy_Click(object sender, RoutedEventArgs e)
         {
-            Clipboard.SetText(messageForCopy);
+            Clipboard.SetText(MessageForCopy);
         }
 
         // Close ボタンがクリックされたとき
@@ -71,9 +69,9 @@ namespace GGFront
         {
             if (this.WindowState == WindowState.Normal)
             {
-                Util.settings.errorWindowHeight = (int) this.ActualHeight;
-                Util.settings.errorWindowWidth = (int) this.ActualWidth;
-                Util.settings.Save();
+                Util.Settings.ErrorWindowHeight = (int) this.ActualHeight;
+                Util.Settings.ErrorWindowWidth = (int) this.ActualWidth;
+                Util.Settings.Save();
             }
         }
     }

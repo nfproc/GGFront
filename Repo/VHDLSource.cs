@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -31,44 +31,52 @@ namespace GGFront
             public string SignalName;
             public List<string> Values;
         };
+        public class VHDLSourceState
+        {
+            public StreamReader Stream;
+            public bool InMultiLineComment;
+        }; 
 
-        public bool isValid;
-        public string content;
+        public bool IsValid;
+        public string Content;
         public VHDLDataFile FileName;
-        public List<string> entities;
-        public List<Component> components;
-        public List<VHDLDataFile> inFiles, outFiles;
-        public List<int> origLineNumber;
-        public Dictionary<string, VHDLEnumeration> enumSignals;
+        public List<string> Entities;
+        public List<Component> Components;
+        public List<VHDLDataFile> InFiles, OutFiles;
+        public List<int> OriginalLineNumber;
+        public Dictionary<string, VHDLEnumeration> EnumSignals;
+        public bool IsVHDL2008;
 
         // コンストラクタ: ソースファイルの解析を行う
-        public VHDLSource(string SourceName, int SourceIndex = 0)
+        public VHDLSource(string sourceName, int sourceIndex = 0)
         {
-            entities = new List<string>();
-            components = new List<Component>();
-            inFiles = new List<VHDLDataFile>();
-            outFiles = new List<VHDLDataFile>();
+            Entities = new List<string>();
+            Components = new List<Component>();
+            InFiles = new List<VHDLDataFile>();
+            OutFiles = new List<VHDLDataFile>();
             FileName = new VHDLDataFile
             {
-                Original = SourceName,
-                Internal = $"src{SourceIndex}.vhd"
+                Original = sourceName,
+                Internal = $"src{sourceIndex}.vhd"
             };
-            origLineNumber = new List<int>();
-            origLineNumber.Add(0);
-            enumSignals = new Dictionary<string, VHDLEnumeration>();
+            OriginalLineNumber = new List<int>();
+            OriginalLineNumber.Add(0);
+            EnumSignals = new Dictionary<string, VHDLEnumeration>();
+            IsVHDL2008 = false;
             Dictionary<string, List<string>> enumTypes = new Dictionary<string, List<string>>();
             char[] trimChars = { ' ', '\t', ',' };
 
             try
             {
-                FileInfo fi = new FileInfo(SourceName);
+                FileInfo fi = new FileInfo(sourceName);
                 StringBuilder c = new StringBuilder((int)fi.Length);
-                StreamReader sr = new StreamReader(SourceName, Encoding.GetEncoding("ISO-8859-1"));
+                VHDLSourceState ss = new VHDLSourceState();
+                ss.Stream = new StreamReader(sourceName, Encoding.GetEncoding("ISO-8859-1"));
                 Match match;
                 string line;
                 string currentEntity = "", currentArchitecture = "";
                 int srcLineNumber = 0;
-                while ((line = ReadLineWithoutComments(sr)) != null)
+                while ((line = ReadLineWithoutComments(ss)) != null)
                 {
                     srcLineNumber++;
                     // 複数行にまたがる type, signal 宣言
@@ -76,7 +84,7 @@ namespace GGFront
                     if (match.Success)
                     {
                         string newLine;
-                        while ((newLine = ReadLineWithoutComments(sr)) != null)
+                        while ((newLine = ReadLineWithoutComments(ss)) != null)
                         {
                             line = line + " " + newLine;
                             srcLineNumber++;
@@ -88,7 +96,7 @@ namespace GGFront
                     // entity 宣言（階層構造作成用）
                     match = Regex.Match(line, @"entity\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
                     if (match.Success)
-                        entities.Add(match.Groups[1].Value.ToLower());
+                        Entities.Add(match.Groups[1].Value.ToLower());
                     // architecture 宣言（階層構造作成用）
                     match = Regex.Match(line, @"architecture\s+([a-z0-9_]+)\s+of\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
                     if (match.Success)
@@ -103,8 +111,8 @@ namespace GGFront
                         Component newComponent = new Component();
                         newComponent.Name = match.Groups[1].Value.ToLower();
                         newComponent.From = currentEntity;
-                        if (!components.Contains(newComponent))
-                            components.Add(newComponent);
+                        if (!Components.Contains(newComponent))
+                            Components.Add(newComponent);
                     }
 
                     // 入出力ファイル1: file 宣言時に open する場合
@@ -113,7 +121,7 @@ namespace GGFront
                     {
                         bool isInput = m.Groups[2].Value.ToLower().EndsWith("read_mode") || m.Groups[3].Value.ToLower() == "in";
                         string inOut = (isInput) ? "in" : "out";
-                        VHDLDataFile file = AddDataFile(SourceIndex, m.Groups[4].Value, isInput, currentEntity);
+                        VHDLDataFile file = AddDataFile(sourceIndex, m.Groups[4].Value, isInput, currentEntity);
                         return m.Groups[1].Value + file.Internal + m.Groups[5].Value;
                     }, RegexOptions.IgnoreCase);
                     // 入出力ファイル2: process の中で file_open する場合
@@ -122,7 +130,7 @@ namespace GGFront
                     {
                         bool isInput = m.Groups[5].Value.ToLower() == "read_mode";
                         string inOut = (isInput) ? "in" : "out";
-                        VHDLDataFile file = AddDataFile(SourceIndex, m.Groups[3].Value, isInput, currentEntity);
+                        VHDLDataFile file = AddDataFile(sourceIndex, m.Groups[3].Value, isInput, currentEntity);
                         return m.Groups[1].Value + file.Internal + m.Groups[4].Value;
                     }, RegexOptions.IgnoreCase);
 
@@ -151,15 +159,15 @@ namespace GGFront
 
                             foreach (string s in signalNames)
                             {
-                                string tempName = $"gf_src{SourceIndex}_enum{enumSignals.Count}";
+                                string tempName = $"gf_src{sourceIndex}_enum{EnumSignals.Count}";
                                 VHDLEnumeration newSignal = new VHDLEnumeration();
                                 newSignal.Entity = currentEntity;
                                 newSignal.TypeName = typeName;
                                 newSignal.SignalName = s;
                                 newSignal.Values = enumTypes[typeName];
-                                enumSignals[tempName] = newSignal;
+                                EnumSignals[tempName] = newSignal;
                                 c.Append($"signal {tempName} : integer;\n");
-                                origLineNumber.Add(-2);
+                                OriginalLineNumber.Add(-2);
                             }
                         }
 
@@ -168,82 +176,84 @@ namespace GGFront
                     match = Regex.Match(line, @"end\s+([a-z0-9_]+)\s*;", RegexOptions.IgnoreCase);
                     if (match.Success && match.Groups[1].Value.ToLower() == currentArchitecture)
                     {
-                        foreach (KeyValuePair<string, VHDLEnumeration> sig in enumSignals)
+                        foreach (KeyValuePair<string, VHDLEnumeration> sig in EnumSignals)
                         {
                             if (sig.Value.Entity != currentEntity)
                                 continue;
                             c.Append($"{sig.Key} <= {sig.Value.TypeName}'pos({sig.Value.SignalName});\n");
-                            origLineNumber.Add(-2);
+                            OriginalLineNumber.Add(-2);
                         }
                     }
+                    // VHDL-2008 特有の記法
+                    match = Regex.Match(line, @"ieee\.numeric_std_unsigned\.|std\.env\.|case\?|select\?|\?[=><\?]|\?/=", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                        IsVHDL2008 = true;
 
                     c.Append(line).Append("\n");
-                    origLineNumber.Add(srcLineNumber);
+                    OriginalLineNumber.Add(srcLineNumber);
                 }
-                sr.Close();
-                origLineNumber.Add(-1);
-                content = c.ToString();
-                isValid = true;
+                ss.Stream.Close();
+                OriginalLineNumber.Add(-1);
+                Content = c.ToString();
+                IsValid = true;
             }
             catch (IOException)
             {
-                content = $"ソースファイル {SourceName} の読み込みに失敗しました．";
-                isValid = false;
+                Content = $"ソースファイル {sourceName} の読み込みに失敗しました．";
+                IsValid = false;
             }
             catch (Exception e)
             {
-                content = "VHDLソース読み込み中の予期せぬエラー．\n内容: " + e.ToString();
-                isValid = false;
+                Content = "VHDLソース読み込み中の予期せぬエラー．\n内容: " + e.ToString();
+                IsValid = false;
             }
         }
 
-        public string ReadLineWithoutComments (StreamReader sr)
+        public string ReadLineWithoutComments (VHDLSourceState ss)
         {
-            string line = sr.ReadLine();
+            string line = ss.Stream.ReadLine();
             if (line == null)
                 return null;
-            if (line.IndexOf("--") != -1)
+
+            // 文字列リテラル内の -- や /* を除外する
+            //                                           1       23
+            string escaped = Regex.Replace(" " + line, @"([^'])""(([^""]|"""")*)""", m =>
             {
-                bool inLiteral = false;
-                int posString = 0;
-                while (true)
+                // */ または / 以外のすべての文字を . に変換
+                string inner = Regex.Replace(m.Groups[2].Value, @"(?!\*/|/).", ".");
+                return m.Groups[1].Value + "\"" + inner + "\"";
+            });
+            escaped = escaped.Substring(1);
+
+            // -- 以降の文字列を削除
+            escaped = Regex.Replace(escaped, @"--.*", "");
+            line = line.Substring(0, escaped.Length);
+
+            // /* と */ で囲まれた範囲を削除
+            int posString = 0;
+            int op = 0, cl;
+            while (true)
+            {
+                if (! ss.InMultiLineComment)
                 {
-                    int quote = line.IndexOf("\"", posString);
-                    int twoQuote = line.IndexOf("\"\"", posString);
-                    int twoDash = line.IndexOf("--", posString);
-                    int quoteChar = line.IndexOf("'\"'", posString);
-                    if (twoDash == -1) // -- が見つからなくなったらそこまで
-                    {
+                    op = escaped.IndexOf("/*", posString);
+                    if (op == -1)
                         break;
-                    }
-                    else if (twoDash < quote || quote == -1) // -- が先に見つかった
-                    {
-                        if (!inLiteral)
-                        {
-                            line = line.Substring(0, twoDash); // 文字列中でなければ後続を削除
-                            break;
-                        }
-                        posString = twoDash + 1;
-                    }
-                    else // " が先に見つかった
-                    {
-                        posString = quote + 1;
-                        if (!inLiteral)
-                        {
-                            if (quote != quoteChar + 1) // '"' は除外
-                                inLiteral = true;
-                        }
-                        else
-                        {
-                            if (quote != twoQuote) // 文字列中の "" は除外
-                                inLiteral = false;
-                            else
-                                posString = quote + 2;
-                        }
-                    }
+                    ss.InMultiLineComment = true;
+                    posString = op + 2;
+                }
+                else
+                {
+                    cl = escaped.IndexOf("*/", posString);
+                    line = line.Substring(0, op) + ((cl != -1) ? line.Substring(cl + 2) : "");
+                    escaped = escaped.Substring(0, op) + ((cl != -1) ? escaped.Substring(cl + 2) : "");
+                    if (cl == -1)
+                        break;
+                    posString = op;
+                    ss.InMultiLineComment = false;
                 }
             }
-            return line.TrimEnd();
+            return line;
         }
 
         // ソースファイルおよびテストベンチから読み込まれるデータをコピーする
@@ -252,17 +262,17 @@ namespace GGFront
             try
             {
                 StreamWriter sw = new StreamWriter(workDir + FileName.Internal, false, Encoding.GetEncoding("ISO-8859-1"));
-                sw.Write(content);
+                sw.Write(Content);
                 sw.Close();
             }
             catch (IOException)
             {
-                content = $"一時ファイル {FileName.Internal} の書き込みに失敗しました．";
-                isValid = false;
+                Content = $"一時ファイル {FileName.Internal} の書き込みに失敗しました．";
+                IsValid = false;
                 return;
             }
 
-            foreach (VHDLDataFile inFile in inFiles)
+            foreach (VHDLDataFile inFile in InFiles)
             {
                 try
                 {
@@ -273,8 +283,8 @@ namespace GGFront
                 {
                     string sName = Path.GetFileName(FileName.Original);
                     string dName = Path.GetFileName(inFile.Original);
-                    content = $"ファイル {sName} から開かれるファイル {dName} のコピーに失敗しました．";
-                    isValid = false;
+                    Content = $"ファイル {sName} から開かれるファイル {dName} のコピーに失敗しました．";
+                    IsValid = false;
                     return;
                 }
             }
@@ -283,7 +293,7 @@ namespace GGFront
         // テストベンチから書き込まれるデータをコピーする
         public void CopyFromWorkDirectory (string workDir)
         {
-            foreach (VHDLDataFile outFile in outFiles)
+            foreach (VHDLDataFile outFile in OutFiles)
             {
                 try
                 {
@@ -294,8 +304,8 @@ namespace GGFront
                 {
                     string sName = Path.GetFileName(FileName.Original);
                     string dName = Path.GetFileName(outFile.Original);
-                    content = $"ファイル {sName} から開かれるファイル {dName} のコピーに失敗しました．";
-                    isValid = false;
+                    Content = $"ファイル {sName} から開かれるファイル {dName} のコピーに失敗しました．";
+                    IsValid = false;
                     return;
                 }
             }
@@ -304,9 +314,9 @@ namespace GGFront
         // テストベンチから読み書きされるファイルが使われるかチェックする
         public void CheckDataFileReference(EntityHierarchy hierarchy)
         {
-            foreach (VHDLDataFile file in inFiles)
+            foreach (VHDLDataFile file in InFiles)
                 file.referenced = hierarchy.Referenced(file.InEntity);
-            foreach (VHDLDataFile file in outFiles)
+            foreach (VHDLDataFile file in OutFiles)
                 file.referenced = hierarchy.Referenced(file.InEntity);
         }
 
@@ -314,7 +324,7 @@ namespace GGFront
         VHDLDataFile AddDataFile(int SourceIndex, string OriginalName, bool isInput, string EntityName)
         {
             string inOut = (isInput) ? "in" : "out";
-            int fileIndex = (isInput) ? inFiles.Count : outFiles.Count;
+            int fileIndex = (isInput) ? InFiles.Count : OutFiles.Count;
             VHDLDataFile file = new VHDLDataFile
             {
                 Original = Path.Combine(Path.GetDirectoryName(FileName.Original), OriginalName),
@@ -322,9 +332,9 @@ namespace GGFront
                 InEntity = EntityName
             };
             if (isInput)
-                inFiles.Add(file);
+                InFiles.Add(file);
             else
-                outFiles.Add(file);
+                OutFiles.Add(file);
             return file;
         }
     }

@@ -1,11 +1,10 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2022 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -14,85 +13,40 @@ using System.Windows.Input;
 
 namespace GGFront
 {
-    /// <summary>
-    /// MainWindow.xaml の相互作用ロジック
-    /// </summary>
+    // ■■ メインウィンドウ ■■
     public partial class MainWindow : Window
     {
-        ObservableCollection<SourceItem> sourceCollection;
-        ObservableCollection<EntityHierarchyItem> hierarchyCollection;
+        private MainViewModel VM;
 
         public MainWindow()
         {
             InitializeComponent();
-            txtGHDLPath.Text = Util.settings.GHDLPath;
-            txtGTKWavePath.Text = Util.settings.GTKWavePath;
-            chkGuessGHDLPath.IsChecked = Util.settings.guessGHDLPath;
-            chkGuessGTKWavePath.IsChecked = Util.settings.guessGTKWavePath;
-            sourceCollection = new ObservableCollection<SourceItem>();
-            hierarchyCollection = new ObservableCollection<EntityHierarchyItem>();
+            VM = new MainViewModel();
+            DataContext = VM;
+            foreach (int item in Util.ProcLimits)
+                VM.ProcLimits.Add(item);
+            foreach (int item in Util.SimLimits)
+                VM.SimLimits.Add(item);
+            VM.SimLimit = Util.Settings.SimLimit;
+            VM.ProcLimit = Util.Settings.ProcLimit;
             UpdateHierarchy();
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        // 設定を表示するボタン（Setting）が押された場合
+        private void ShowSettings_Click(object sender, RoutedEventArgs e)
         {
-            lstSources.ItemsSource = sourceCollection;
-            lstHierarchy.ItemsSource = hierarchyCollection;
-            InitializeTimeLimit();
-        }
-
-        // 時間制限のコンボボックスの準備
-        public void InitializeTimeLimit()
-        {
-            int numProcItems = 0, numSimItems = 0;
-            int selProc = 0, selSim = 0;
-            ObservableCollection<LimitSelectorItem> procItems = new ObservableCollection<LimitSelectorItem>();
-            ObservableCollection<LimitSelectorItem> simItems = new ObservableCollection<LimitSelectorItem>();
-            foreach (int item in Util.procLimits)
+            SettingWindow win = new SettingWindow(Util.Settings);
+            win.Owner = GetWindow(this);
+            win.ShowDialog();
+            if (win.NewSetting != null)
             {
-                if (Util.settings.procLimit == item)
-                    selProc = numProcItems;
-                procItems.Add(new LimitSelectorItem { Id = numProcItems, Name = (item / 1000) + " sec.", ProcTime = item });
-                numProcItems += 1;
-            }
-            foreach (string item in Util.simLimits)
-            {
-                if (Util.settings.simLimit == item)
-                    selSim = numSimItems;
-                string limitName = Regex.Replace(item, @"([0-9]+)000ms", "$1 sec.");
-                limitName = Regex.Replace(limitName, @"([0-9]+)ms", "$1 msec.");
-                simItems.Add(new LimitSelectorItem { Id = numSimItems, Name = limitName, SimTime = item });
-                numSimItems += 1;
-            }
-            cmbRealLimit.ItemsSource = procItems;
-            cmbRealLimit.SelectedIndex = selProc;
-            cmbSimLimit.ItemsSource = simItems;
-            cmbSimLimit.SelectedIndex = selSim;
-        }
-
-        // ファイルを検索するボタン（..）が押された場合
-        private void PathSearch_Click(object sender, RoutedEventArgs e)
-        {
-            if (((Button) sender).Name.Equals("btnGHDLPathSearch"))
-            {
-                OpenFileDialog dialog = new OpenFileDialog();
-                dialog.Filter = "GHDL (ghdl.exe)|ghdl.exe";
-                dialog.FileName = "ghdl.exe";
-                if (dialog.ShowDialog() == true)
-                {
-                    txtGHDLPath.Text = dialog.FileName;
-                    Util.settings.Save();
-                }
-            } else if (((Button)sender).Name.Equals("btnGTKWavePathSearch"))
-            {
-                OpenFileDialog dialog = new OpenFileDialog();
-                dialog.Filter = "GTKWave (gtkwave.exe)|gtkwave.exe";
-                dialog.FileName = "gtkwave.exe";
-                if (dialog.ShowDialog() == true)
-                {
-                    txtGTKWavePath.Text = dialog.FileName;
-                    Util.settings.Save();
-                }
+                Util.Settings.GHDLPath = win.NewSetting.GHDLPath;
+                Util.Settings.GTKWavePath = win.NewSetting.GTKWavePath;
+                Util.Settings.GuessGHDLPath = win.NewSetting.GuessGHDLPath;
+                Util.Settings.GuessGTKWavePath = win.NewSetting.GuessGTKWavePath;
+                Util.Settings.VHDLStd = win.NewSetting.VHDLStd;
+                Util.Settings.Save();
+                UpdateHierarchy();
             }
         }
 
@@ -125,14 +79,14 @@ namespace GGFront
         private void AddSource (string FileName)
         {
             List<string> currentSources = new List<string>();
-            foreach (SourceItem item in sourceCollection)
+            foreach (SourceItem item in VM.SourceCollection)
                 if (item.Name.Equals(FileName))
                     return;
 
             SourceItem newItem = new SourceItem();
             newItem.Name = FileName;
             newItem.Selected = false;
-            sourceCollection.Add(newItem);
+            VM.SourceCollection.Add(newItem);
         }
 
         // ソースを削除するボタン（Remove）またはDelキーが押された場合
@@ -149,20 +103,20 @@ namespace GGFront
 
         private void RemoveSelectedSources()
         {
-            for (int i = sourceCollection.Count - 1; i >= 0; i -= 1)
-                if (sourceCollection[i].Selected)
-                    sourceCollection.RemoveAt(i);
+            for (int i = VM.SourceCollection.Count - 1; i >= 0; i -= 1)
+                if (VM.SourceCollection[i].Selected)
+                    VM.SourceCollection.RemoveAt(i);
             UpdateHierarchy();
         }
 
         // ソースをリセットするボタン（Reset）が押された場合
         private void Reset_Click(object sender, RoutedEventArgs e)
         {
-            if (sourceCollection.Count == 0)
+            if (VM.SourceCollection.Count == 0)
                 return;
             if (!Util.WarnAndConfirm("ソースファイル一覧がリセットされます．続けますか？"))
                 return;
-            sourceCollection.Clear();
+            VM.SourceCollection.Clear();
             UpdateHierarchy();
         }
 
@@ -172,8 +126,8 @@ namespace GGFront
             EntityHierarchyItem item = (EntityHierarchyItem)lstHierarchy.SelectedItem;
             if (item == null)
                 return;
-            Util.currentProject.topModule = item.Name;
-            Util.currentProject.guessTopModule = false;
+            Util.CurrentProject.TopModule = item.Name;
+            Util.CurrentProject.GuessTopModule = false;
             UpdateHierarchy();
         }
 
@@ -186,19 +140,31 @@ namespace GGFront
         // 階層構造を更新し，リストに表示
         private void UpdateHierarchy()
         {
-            Util.currentProject.sourceFiles.Clear();
-            foreach (SourceItem item in sourceCollection)
-                Util.currentProject.sourceFiles.Add(item.Name);
+            Util.CurrentProject.SourceFiles.Clear();
+            foreach (SourceItem item in VM.SourceCollection)
+                Util.CurrentProject.SourceFiles.Add(item.Name);
 
-            List<EntityHierarchyItem> items = Util.currentProject.hierarchy.Update();
-            hierarchyCollection.Clear();
+            List<EntityHierarchyItem> items = Util.CurrentProject.Hierarchy.Update();
+            VM.HierarchyCollection.Clear();
             foreach (EntityHierarchyItem item in items)
-                hierarchyCollection.Add(item);
+                VM.HierarchyCollection.Add(item);
 
             if (items[0].IsValid)
             {
-                string wavePath = Util.currentProject.wavePath;
-                lblTopModule.Text = "(Waveform: " + System.IO.Path.GetFileName(wavePath) + ")";
+                string wavePath = Util.CurrentProject.WavePath;
+                lblTopModule.Text = "(Waveform: " + Path.GetFileName(wavePath) + ")";
+                lblVHDLStd.Text = "VHDL Version: " +
+                    ((Util.Settings.VHDLStd == 1993) ? "VHDL-93" :
+                     (Util.Settings.VHDLStd == 2008) ? "VHDL-2008" :
+                     (Util.CurrentProject.Hierarchy.IsVHDL2008) ? "VHDL-2008 (Guessed)" : "VHDL-93 (Guessed)");
+                Util.CurrentProject.UseVHDL2008 =
+                    (Util.Settings.VHDLStd == 2008) ||
+                    (Util.Settings.VHDLStd == 0 && Util.CurrentProject.Hierarchy.IsVHDL2008);
+            }
+            else
+            {
+                lblTopModule.Text = "";
+                lblVHDLStd.Text = "VHDL Version: ";
             }
         }
 
@@ -212,102 +178,31 @@ namespace GGFront
         private void ViewWave_Click(object sender, RoutedEventArgs e)
         {
             // 入力をチェック
-            if (!Util.settings.Check())
+            if (!Util.Settings.Check())
                 return;
-            Util.settings.Save();
-            if (!Util.currentProject.Check())
+            Util.Settings.Save();
+            if (!Util.CurrentProject.Check())
                 return;
-            if (!File.Exists(Util.currentProject.wavePath))
+            if (!File.Exists(Util.CurrentProject.WavePath))
             {
                 Util.Warn("波形ファイルが作成されていません．");
                 return;
             }
-            Util.ExecTool(Util.GetGTKWavePath(), "\"" + Util.currentProject.wavePath + "\"", true);
-        }
-
-        // GHDL, GTKWave のパスが入力された場合
-        private void AppPath_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (((TextBox) sender).Name.Equals("txtGHDLPath"))
-            {
-                Util.settings.GHDLPath = txtGHDLPath.Text;
-            }
-            if (((TextBox)sender).Name.Equals("txtGTKWavePath"))
-            {
-                Util.settings.GTKWavePath = txtGTKWavePath.Text;
-            }
-        }
-
-        // GHDL, GTKWave を所定の場所とするチェックがされた場合
-        private void GuessAppPath_Checked(object sender, RoutedEventArgs e)
-        {
-            if (((CheckBox) sender).Name.Equals("chkGuessGHDLPath"))
-            {
-                Util.settings.guessGHDLPath = true;
-                if (! File.Exists(Util.GetGHDLPath()))
-                {
-                    Util.Warn("GHDLが所定の場所に見つかりません．自分で指定してください．");
-                    Util.settings.guessGHDLPath = false;
-                    chkGuessGHDLPath.IsChecked = false;
-                }
-                else
-                {
-                    txtGHDLPath.IsEnabled = false;
-                    btnGHDLPathSearch.IsEnabled = false;
-                }
-                Util.settings.Save();
-            }
-            if (((CheckBox) sender).Name.Equals("chkGuessGTKWavePath"))
-            {
-                Util.settings.guessGTKWavePath = true;
-                if (! File.Exists(Util.GetGTKWavePath()))
-                {
-                    Util.Warn("GTKWaveが所定の場所に見つかりません．自分で指定してください．");
-                    Util.settings.guessGTKWavePath = false;
-                    chkGuessGTKWavePath.IsChecked = false;
-                }
-                else
-                {
-                    txtGTKWavePath.IsEnabled = false;
-                    btnGTKWavePathSearch.IsEnabled = false;
-                }
-                Util.settings.Save();
-            }
-        }
-
-        // GHDL, GTKWave を所定の場所とするチェックが外れた場合
-        private void GuessAppPath_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (((CheckBox)sender).Name.Equals("chkGuessGHDLPath"))
-            {
-                Util.settings.guessGHDLPath = false;
-                txtGHDLPath.IsEnabled = true;
-                btnGHDLPathSearch.IsEnabled = true;
-                Util.settings.Save();
-            }
-            if (((CheckBox)sender).Name.Equals("chkGuessGTKWavePath"))
-            {
-                Util.settings.guessGTKWavePath = false;
-                txtGTKWavePath.IsEnabled = true;
-                btnGTKWavePathSearch.IsEnabled = true;
-                Util.settings.Save();
-            }
+            Util.ExecTool(Util.GetGTKWavePath(), "\"" + Util.CurrentProject.WavePath + "\"", true);
         }
 
         // シミュレーション時間の設定が変更された場合
         private void Simlimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            LimitSelectorItem item = (LimitSelectorItem) cmbSimLimit.SelectedItem;
-            Util.settings.simLimit = item.SimTime;
-            Util.settings.Save();
+            Util.Settings.SimLimit = VM.SimLimit;
+            Util.Settings.Save();
         }
 
         // GHDL の実行時間制限の設定が変更された場合
-        private void Reallimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void Proclimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            LimitSelectorItem item = (LimitSelectorItem)cmbRealLimit.SelectedItem;
-            Util.settings.procLimit = item.ProcTime;
-            Util.settings.Save();
+            Util.Settings.ProcLimit = VM.ProcLimit;
+            Util.Settings.Save();
         }
     }
 }

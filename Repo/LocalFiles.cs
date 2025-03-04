@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using GGFront.Properties;
@@ -11,8 +11,9 @@ using System.Xml.Serialization;
 
 namespace GGFront
 {
-    // 設定ファイルに対応するクラス
-    public class GGFrontSettings
+    // 設定ファイルに対応するクラス（～v0.7.x）
+    [XmlType("GGFrontSettings")]
+    public class GGFrontLegacySettings
     {
         public string GGFrontVersion;
         public bool guessGHDLPath, guessGTKWavePath;
@@ -22,93 +23,136 @@ namespace GGFront
         public int errorWindowWidth;    // v0.5.0+
         public int errorWindowHeight;   // v0.5.0+
         public int errorWindowTextSize; // v0.5.0+
-        private bool disableSaveSettings;
 
-        public const string simLimitDefault = "1ms";
-        public const int procLimitDefault = 3000; // ms
-        public const int errorWindowWidthDefault = 500;
-        public const int errorWindowHeightDefault = 300;
-        public const int errorWindowTextSizeDefault = 12;
+        public static bool Load(GGFrontSettings newSettings)
+        {
+            try
+            {
+                XmlSerializer serial = new XmlSerializer(typeof(GGFrontLegacySettings));
+                FileStream fs = new FileStream(Util.SettingName, FileMode.Open);
+                GGFrontLegacySettings legacySettings = (GGFrontLegacySettings)serial.Deserialize(fs);
+                double version = Double.Parse(newSettings.GGFrontVersion);
+
+                newSettings.GHDLPath = legacySettings.GHDLPath; // v0.1.0+
+                newSettings.GTKWavePath = legacySettings.GTKWavePath; // v0.1.0+
+                if (version >= 0.3)
+                {
+                    newSettings.GuessGHDLPath = legacySettings.guessGHDLPath;
+                    newSettings.GuessGTKWavePath = legacySettings.guessGTKWavePath;
+                }
+                if (version >= 0.4)
+                {
+                    newSettings.SimLimit = int.Parse(legacySettings.simLimit.Substring(0, legacySettings.simLimit.Length - 2));
+                    newSettings.ProcLimit = legacySettings.procLimit;
+                }
+                if (version >= 0.5)
+                {
+                    newSettings.ErrorWindowHeight = legacySettings.errorWindowHeight;
+                    newSettings.ErrorWindowWidth = legacySettings.errorWindowWidth;
+                    newSettings.ErrorWindowTextSize = legacySettings.errorWindowTextSize;
+                }
+                fs.Close();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    // 設定ファイルに対応するクラス
+    public class GGFrontSettings
+    {
+        public string GGFrontVersion;
+        public bool GuessGHDLPath, GuessGTKWavePath;
+        public string GHDLPath, GTKWavePath;
+        public int SimLimit;
+        public int ProcLimit;
+        public int ErrorWindowWidth;
+        public int ErrorWindowHeight;
+        public int ErrorWindowTextSize;
+        public int VHDLStd;     // v0.8.0+
+        private bool DisableSaveSettings;
+
+        public const int SimLimitDefault = 1; // ms
+        public const int ProcLimitDefault = 3000; // ms
+        public const int ErrorWindowWidthDefault = 500;
+        public const int ErrorWindowHeightDefault = 300;
+        public const int ErrorWindowTextSizeDefault = 12;
+        public const int VHDLStdDefault = 0; // guess
 
         public GGFrontSettings()
         {
             GGFrontVersion = Util.GGFrontDataVersion;
-            disableSaveSettings = false;
+            DisableSaveSettings = false;
         }
 
         private void Reset()
         {
             GHDLPath = "";
             GTKWavePath = "";
-            guessGHDLPath = guessGTKWavePath = false;
-            simLimit = simLimitDefault;
-            procLimit = procLimitDefault;
-            errorWindowHeight = errorWindowHeightDefault;
-            errorWindowWidth = errorWindowWidthDefault;
-            errorWindowTextSize = errorWindowTextSizeDefault;
+            GuessGHDLPath = GuessGTKWavePath = false;
+            SimLimit = SimLimitDefault;
+            ProcLimit = ProcLimitDefault;
+            ErrorWindowHeight = ErrorWindowHeightDefault;
+            ErrorWindowWidth = ErrorWindowWidthDefault;
+            ErrorWindowTextSize = ErrorWindowTextSizeDefault;
+            VHDLStd = VHDLStdDefault;
         }
 
         public bool Load()
         {
             try
             {
+                Reset();
                 XmlSerializer serial = new XmlSerializer(typeof(GGFrontSettings));
-                FileStream fs = new FileStream(Util.settingName, FileMode.Open);
+                FileStream fs = new FileStream(Util.SettingName, FileMode.Open);
                 GGFrontSettings newSettings = (GGFrontSettings)serial.Deserialize(fs);
+                fs.Close();
+
                 double version = Double.Parse(newSettings.GGFrontVersion);
-                if (version < 0.3)
+                if (version < 0.8)
                 {
-                    guessGHDLPath = false;
-                    guessGTKWavePath = false;
-                }
-                else
-                {
-                    guessGHDLPath = newSettings.guessGHDLPath;
-                    guessGTKWavePath = newSettings.guessGTKWavePath;
-                }
-                if (version < 0.4)
-                {
-                    simLimit = simLimitDefault;
-                    procLimit = procLimitDefault;
-                }
-                else
-                {
-                    simLimit = newSettings.simLimit;
-                    procLimit = newSettings.procLimit;
-                }
-                if (version < 0.5)
-                {
-                    errorWindowHeight = errorWindowHeightDefault;
-                    errorWindowWidth = errorWindowWidthDefault;
-                    errorWindowTextSize = errorWindowTextSizeDefault;
-                }
-                else
-                {
-                    errorWindowHeight = newSettings.errorWindowHeight;
-                    errorWindowWidth = newSettings.errorWindowWidth;
-                    errorWindowTextSize = newSettings.errorWindowTextSize;
+                    if (GGFrontLegacySettings.Load(newSettings))
+                    {
+                        Util.Info("旧バージョンの GGFront から設定を読み取りました．");
+                    }
+                    else
+                    {
+                        Util.Info("旧バージョンの GGFront からの設定ファイルの読み取りに失敗しました．\n" +
+                            "設定ファイルを保存しません．");
+                        DisableSaveSettings = true;
+                        return false;
+                    }
                 }
                 GHDLPath = newSettings.GHDLPath;
                 GTKWavePath = newSettings.GTKWavePath;
-                fs.Close();
+                GuessGHDLPath = newSettings.GuessGHDLPath;
+                GuessGTKWavePath = newSettings.GuessGTKWavePath;
+                SimLimit = newSettings.SimLimit;
+                ProcLimit = newSettings.ProcLimit;
+                ErrorWindowHeight = newSettings.ErrorWindowHeight;
+                ErrorWindowWidth = newSettings.ErrorWindowWidth;
+                ErrorWindowTextSize = newSettings.ErrorWindowTextSize;
+                VHDLStd = newSettings.VHDLStd;
+                if (version < 0.8)
+                    Save();
             }
             catch (FileNotFoundException)
             {
-                Reset();
                 return false;
             }
             catch (InvalidOperationException)
             {
                 Util.Warn("設定ファイルのロードに失敗しました．形式が正しくありません．");
-                Reset();
                 return false;
             }
             catch (Exception ex)
             {
                 Util.Warn("設定ファイルのロード中にエラーが発生しました．\n" +
                     "設定ファイルを保存しません．\n\nエラー内容: " + ex.Message);
-                Reset();
-                disableSaveSettings = true;
+                DisableSaveSettings = true;
                 return false;
             }
             return true;
@@ -116,12 +160,12 @@ namespace GGFront
 
         public void Save()
         {
-            if (disableSaveSettings)
+            if (DisableSaveSettings)
                 return;
             try
             {
                 XmlSerializer serial = new XmlSerializer(typeof(GGFrontSettings));
-                FileStream fs = new FileStream(Util.settingName, FileMode.Create);
+                FileStream fs = new FileStream(Util.SettingName, FileMode.Create);
                 serial.Serialize(fs, this);
                 fs.Close();
             }
@@ -129,18 +173,18 @@ namespace GGFront
             {
                 Util.Warn("設定ファイルのセーブ中にエラーが発生しました．\n" +
                     "これ以降，設定ファイルを保存しません．\n\nエラー内容: " + ex.Message);
-                disableSaveSettings = true;
+                DisableSaveSettings = true;
             }
         }
 
         public bool Check()
         {
-            if (GHDLPath == "" && !guessGHDLPath)
+            if (GHDLPath == "" && !GuessGHDLPath)
             {
                 Util.Warn("GHDLのパスが指定されていません．");
                 return false;
             }
-            if (GTKWavePath == "" && !guessGTKWavePath)
+            if (GTKWavePath == "" && !GuessGTKWavePath)
             {
                 Util.Warn("GTKWaveのパスが指定されていません．");
                 return false;
@@ -152,21 +196,23 @@ namespace GGFront
     // プロジェクトファイル（だったもの）に対応するクラス
     public class GGFrontProject
     {
-        public string wavePath, topModule;
-        public bool guessTopModule;
-        public List<string> sourceFiles;
-        public EntityHierarchy hierarchy;
+        public string WavePath, TopModule;
+        public bool GuessTopModule;
+        public List<string> SourceFiles;
+        public EntityHierarchy Hierarchy;
+        public bool UseVHDL2008;
 
         public GGFrontProject()
         {
-            sourceFiles = new List<string>();
-            hierarchy = new EntityHierarchy(this);
-            guessTopModule = true;
+            SourceFiles = new List<string>();
+            Hierarchy = new EntityHierarchy(this);
+            GuessTopModule = true;
+            UseVHDL2008 = false;
         }
 
         public bool Check()
         {
-            if (topModule == "")
+            if (TopModule == "")
             {
                 Util.Warn("Hierarchy リストに表示された問題を解決してください．");
                 return false;
@@ -178,7 +224,7 @@ namespace GGFront
     // エラー一覧に対応するクラス
     public class GHDLErrorDescription
     {
-        public string pattern, name, description, handling;
+        public string Pattern, Name, Description, Handling;
     }
     public class GHDLErrorList
     {
@@ -191,10 +237,10 @@ namespace GGFront
             for (int i = 0; i < strs.Length - 3; i += 4)
             {
                 GHDLErrorDescription newError = new GHDLErrorDescription();
-                newError.pattern = strs[i];
-                newError.name = strs[i + 1];
-                newError.description = strs[i + 2];
-                newError.handling = strs[i + 3];
+                newError.Pattern = strs[i];
+                newError.Name = strs[i + 1];
+                newError.Description = strs[i + 2];
+                newError.Handling = strs[i + 3];
                 errors.Add(newError);
             }
         }
@@ -203,7 +249,7 @@ namespace GGFront
         {
             foreach(GHDLErrorDescription error in errors)
             {
-                if (Regex.Match(str, error.pattern).Success) {
+                if (Regex.Match(str, error.Pattern).Success) {
                     return error;
                 }
             }

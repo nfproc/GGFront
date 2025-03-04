@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System.Collections.Generic;
@@ -9,12 +9,14 @@ namespace GGFront
 {
     public class EntityHierarchy
     {
-        public List<EntityHierarchyItem> items;
-        private GGFrontProject project;
+        public List<EntityHierarchyItem> Items;
+        private GGFrontProject Project;
+        public bool IsVHDL2008;
 
         public EntityHierarchy(GGFrontProject parentProject)
         {
-            project = parentProject;
+            Project = parentProject;
+            IsVHDL2008 = false;
         }
 
         // ソースを解析して Entity の階層関係を作成
@@ -23,16 +25,18 @@ namespace GGFront
             Dictionary<string, string> inFile = new Dictionary<string, string>();
             Dictionary<string, List<string>> duplicatedEntities = new Dictionary<string, List<string>>();
             List<string> entities = new List<string>();
-            items = new List<EntityHierarchyItem>();
+            Items = new List<EntityHierarchyItem>();
             List<VHDLSource.Component> components = new List<VHDLSource.Component>();
+            IsVHDL2008 = false;
 
             // Entity, Component 宣言を数え上げる
-            foreach (string FileName in project.sourceFiles)
+            foreach (string FileName in Project.SourceFiles)
             {
                 VHDLSource src = new VHDLSource(FileName);
-                if (!src.isValid)
+                if (!src.IsValid)
                     continue;
-                foreach (string entity in src.entities)
+                IsVHDL2008 = IsVHDL2008 || src.IsVHDL2008;
+                foreach (string entity in src.Entities)
                 {
                     if (entities.Contains(entity))
                     {
@@ -49,7 +53,7 @@ namespace GGFront
                         inFile[entity] = FileName;
                     }
                 }
-                foreach (VHDLSource.Component component in src.components)
+                foreach (VHDLSource.Component component in src.Components)
                     components.Add(component);
             }
             if (entities.Count == 0)
@@ -77,17 +81,17 @@ namespace GGFront
             trees.Sort((a, b) => b.Count - a.Count);
 
             // トップモジュール・波形ファイルの設定
-            if (!entities.Contains(project.topModule) || project.guessTopModule)
+            if (!entities.Contains(Project.TopModule) || Project.GuessTopModule)
             {
-                project.topModule = trees[0][0].Name;
-                project.guessTopModule = true;
+                Project.TopModule = trees[0][0].Name;
+                Project.GuessTopModule = true;
             }
-            if (entities.Contains(project.topModule))
+            if (entities.Contains(Project.TopModule))
             {
-                string file = inFile[project.topModule];
+                string file = inFile[Project.TopModule];
                 int pos = file.LastIndexOf(".");
                 pos = (pos == -1) ? file.Length : pos;
-                project.wavePath = Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".vcd";
+                Project.WavePath = Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".vcd";
             }
 
             // 各 Entity に対応するソースのパス名を設定
@@ -100,18 +104,18 @@ namespace GGFront
                         item.LongPath = inFile[item.Name];
                         item.ShortPath = Path.GetFileName(item.LongPath);
                     }
-                    item.IsTop = item.Name.Equals(project.topModule);
+                    item.IsTop = item.Name.Equals(Project.TopModule);
                 }
-                items.AddRange(tree);
+                Items.AddRange(tree);
             }
-            return items;
+            return Items;
         }
 
         // 指定された entity がトップモジュールから参照されているかを返す
         public bool Referenced (string entityName)
         {
             int TopLevel = -1;
-            foreach (EntityHierarchyItem item in items)
+            foreach (EntityHierarchyItem item in Items)
             {
                 if (item.IsTop) // トップモジュールを見つけたら，そのレベルを記憶
                     TopLevel = item.Level;
@@ -160,28 +164,28 @@ namespace GGFront
 
         private List<EntityHierarchyItem> InvalidHierarchy(string message)
         {
-            items = new List<EntityHierarchyItem>();
+            Items = new List<EntityHierarchyItem>();
             EntityHierarchyItem item = new EntityHierarchyItem
             {
                 IsValid = false,
                 Level = 0,
                 Name = message
             };
-            items.Add(item);
-            project.topModule = "";
-            return items;
+            Items.Add(item);
+            Project.TopModule = "";
+            return Items;
         }
 
         private List<EntityHierarchyItem> ReportDuplicatedEntities(Dictionary<string, List<string>> dup)
         {
-            items = new List<EntityHierarchyItem>();
+            Items = new List<EntityHierarchyItem>();
             EntityHierarchyItem top = new EntityHierarchyItem
             {
                 IsValid = false,
                 Level = 0,
                 Name = "<!> Entity が重複して定義されています．"
             };
-            items.Add(top);
+            Items.Add(top);
             foreach (KeyValuePair<string, List<string>> kvp in dup)
                 foreach (string source in kvp.Value)
                 {
@@ -193,10 +197,10 @@ namespace GGFront
                         LongPath = source,
                         ShortPath = Path.GetFileName(source)
                     };
-                    items.Add(sourceItem);
+                    Items.Add(sourceItem);
                 }
-            project.topModule = "";
-            return items;
+            Project.TopModule = "";
+            return Items;
 
         }
     }

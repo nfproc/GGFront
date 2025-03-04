@@ -1,5 +1,5 @@
 ﻿// GGFront: A GHDL/GTKWave GUI Frontend
-// Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
 using System;
@@ -13,8 +13,8 @@ namespace GGFront
     // 実行結果として得られた波形ファイルを整形する
     class VCDResult
     {
-        public bool isValid;
-        public string content;
+        public bool IsValid;
+        public string Content;
 
         public VCDResult(string SourceName, long simTime, Dictionary<string, VHDLSource.VHDLEnumeration> enumSignals)
         {
@@ -50,36 +50,36 @@ namespace GGFront
                 }
                 // シミュレーション終了時間の追記
                 c.Append("#").Append(simTime.ToString()).Append("\n");
-                content = c.ToString();
+                Content = c.ToString();
                 sr.Close();
             }
             catch (IOException)
             {
-                content = $"波形ファイル {SourceName} の読み込みに失敗しました．";
-                isValid = false;
+                Content = $"波形ファイル {SourceName} の読み込みに失敗しました．";
+                IsValid = false;
             }
             catch (Exception e)
             {
-                content = "波形ファイル読み込み中の予期せぬエラー．\n内容: " + e.ToString();
-                isValid = false;
+                Content = "波形ファイル読み込み中の予期せぬエラー．\n内容: " + e.ToString();
+                IsValid = false;
             }
-            isValid = true;
+            IsValid = true;
         }
 
         public void WriteTo(string DestName)
         {
-            if (!isValid)
+            if (!IsValid)
                 return;
             try
             {
                 StreamWriter sw = new StreamWriter(DestName, false, Encoding.GetEncoding("ISO-8859-1"));
-                sw.Write(content);
+                sw.Write(Content);
                 sw.Close();
             }
             catch (IOException)
             {
-                content = $"波形ファイルの {DestName} への書き込みに失敗しました．";
-                isValid = false;
+                Content = $"波形ファイルの {DestName} への書き込みに失敗しました．";
+                IsValid = false;
             }
         }
     }

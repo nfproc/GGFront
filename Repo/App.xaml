@@ -1,5 +1,5 @@
 ﻿<!-- GGFront: A GHDL/GTKWave GUI Frontend
-     Copyright (C) 2018-2023 Naoki FUJIEDA. New BSD License is applied.
+     Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
      *******************************************************************-->
 <Application x:Class="GGFront.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
