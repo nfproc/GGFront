@@ -4,8 +4,9 @@
 
 using System.Collections.Generic;
 using System.IO;
+using GGFront.ViewModels;
 
-namespace GGFront
+namespace GGFront.Models
 {
     public class EntityHierarchy
     {
@@ -15,6 +16,7 @@ namespace GGFront
 
         public EntityHierarchy(GGFrontProject parentProject)
         {
+            Items = new List<EntityHierarchyItem>();
             Project = parentProject;
             IsVHDL2008 = false;
         }
@@ -26,21 +28,21 @@ namespace GGFront
             Dictionary<string, List<string>> duplicatedEntities = new Dictionary<string, List<string>>();
             List<string> entities = new List<string>();
             Items = new List<EntityHierarchyItem>();
-            List<VHDLSource.Component> components = new List<VHDLSource.Component>();
+            List<VHDLSource.ComponentDecl> components = new List<VHDLSource.ComponentDecl>();
             IsVHDL2008 = false;
 
             // Entity, Component 宣言を数え上げる
             foreach (string FileName in Project.SourceFiles)
             {
                 VHDLSource src = new VHDLSource(FileName);
-                if (!src.IsValid)
+                if (! src.IsValid)
                     continue;
                 IsVHDL2008 = IsVHDL2008 || src.IsVHDL2008;
                 foreach (string entity in src.Entities)
                 {
                     if (entities.Contains(entity))
                     {
-                        if (!duplicatedEntities.ContainsKey(entity))
+                        if (! duplicatedEntities.ContainsKey(entity))
                         {
                             duplicatedEntities[entity] = new List<string>();
                             duplicatedEntities[entity].Add(inFile[entity]);
@@ -53,7 +55,7 @@ namespace GGFront
                         inFile[entity] = FileName;
                     }
                 }
-                foreach (VHDLSource.Component component in src.Components)
+                foreach (VHDLSource.ComponentDecl component in src.Components)
                     components.Add(component);
             }
             if (entities.Count == 0)
@@ -63,8 +65,8 @@ namespace GGFront
 
             // 他から参照されていない Entity を列挙
             List<string> roots = new List<string>(entities);
-            foreach (VHDLSource.Component component in components)
-                if (roots.Contains(component.Name))
+            foreach (VHDLSource.ComponentDecl component in components)
+                if (component.Name != null && roots.Contains(component.Name))
                     roots.Remove(component.Name);
             if (roots.Count == 0)
                 return InvalidHierarchy("<!> Entity の循環参照を検出しました．");
@@ -73,7 +75,7 @@ namespace GGFront
             List<List<EntityHierarchyItem>> trees = new List<List<EntityHierarchyItem>>();
             foreach (string root in roots)
             {
-                List<EntityHierarchyItem> tree = SearchEntityTree(root, new List<string>(), entities, components);
+                List<EntityHierarchyItem>? tree = SearchEntityTree(root, new List<string>(), entities, components);
                 if (tree == null)
                     return InvalidHierarchy("<!> Entity の循環参照を検出しました．");
                 trees.Add(tree);
@@ -81,9 +83,9 @@ namespace GGFront
             trees.Sort((a, b) => b.Count - a.Count);
 
             // トップモジュール・波形ファイルの設定
-            if (!entities.Contains(Project.TopModule) || Project.GuessTopModule)
+            if (! entities.Contains(Project.TopModule) || Project.GuessTopModule)
             {
-                Project.TopModule = trees[0][0].Name;
+                Project.TopModule = trees[0][0].Name ?? "";
                 Project.GuessTopModule = true;
             }
             if (entities.Contains(Project.TopModule))
@@ -91,7 +93,7 @@ namespace GGFront
                 string file = inFile[Project.TopModule];
                 int pos = file.LastIndexOf(".");
                 pos = (pos == -1) ? file.Length : pos;
-                Project.WavePath = Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".vcd";
+                Project.WavePath = Path.GetDirectoryName(file) + "/" + Path.GetFileNameWithoutExtension(file) + ".vcd";
             }
 
             // 各 Entity に対応するソースのパス名を設定
@@ -99,12 +101,12 @@ namespace GGFront
             {
                 foreach (EntityHierarchyItem item in tree)
                 {
-                    if (inFile.ContainsKey(item.Name))
+                    if (item.Name != null && inFile.ContainsKey(item.Name))
                     {
                         item.LongPath = inFile[item.Name];
                         item.ShortPath = Path.GetFileName(item.LongPath);
                     }
-                    item.IsTop = item.Name.Equals(Project.TopModule);
+                    item.IsTop = item.Name != null && item.Name.Equals(Project.TopModule);
                 }
                 Items.AddRange(tree);
             }
@@ -112,7 +114,7 @@ namespace GGFront
         }
 
         // 指定された entity がトップモジュールから参照されているかを返す
-        public bool Referenced (string entityName)
+        public bool Referenced(string entityName)
         {
             int TopLevel = -1;
             foreach (EntityHierarchyItem item in Items)
@@ -128,7 +130,8 @@ namespace GGFront
         }
 
         // target からの参照関係を出力
-        private List<EntityHierarchyItem> SearchEntityTree (string target, List<string> parents, List<string> entities, List<VHDLSource.Component> components)
+        private List<EntityHierarchyItem>? SearchEntityTree(string target, List<string> parents, List<string> entities,
+                                                            List<VHDLSource.ComponentDecl> components)
         {
             List<EntityHierarchyItem> result = new List<EntityHierarchyItem>();
             if (parents.Contains(target))  // 循環参照の場合エラー
@@ -141,7 +144,7 @@ namespace GGFront
                 Name = target
             };
             result.Add(targetItem);
-            if (!entities.Contains(target)) // Entity 宣言がない場合はそれ以上掘らない
+            if (! entities.Contains(target)) // Entity 宣言がない場合はそれ以上掘らない
             {
                 targetItem.ShortPath = "???";
                 return result;
@@ -149,10 +152,11 @@ namespace GGFront
 
             List<string> newParents = new List<string>(parents);
             newParents.Add(target);
-            foreach (VHDLSource.Component component in components)
-                if (component.From.Equals(target))
+            foreach (VHDLSource.ComponentDecl component in components)
+                if (component.From != null && component.Name != null && component.From.Equals(target))
                 {
-                    List<EntityHierarchyItem> children = SearchEntityTree(component.Name, newParents, entities, components);
+                    List<EntityHierarchyItem>? children = SearchEntityTree(
+                        component.Name, newParents, entities, components);
                     if (children == null)
                         return null;
                     foreach (EntityHierarchyItem child in children)
@@ -201,7 +205,7 @@ namespace GGFront
                 }
             Project.TopModule = "";
             return Items;
-
         }
     }
 }
+

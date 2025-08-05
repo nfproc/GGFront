@@ -2,16 +2,18 @@
 // Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using GGFront.ViewModels;
+using GGFront.Models;
 
-namespace GGFront
+namespace GGFront.Views
 {
     // ■■ メインウィンドウ ■■
     public partial class MainWindow : Window
@@ -21,23 +23,27 @@ namespace GGFront
         public MainWindow()
         {
             InitializeComponent();
+            Width = Util.Settings.MainWindowWidth;
+            Height = Util.Settings.MainWindowHeight;
             VM = new MainViewModel();
-            DataContext = VM;
             foreach (int item in Util.ProcLimits)
                 VM.ProcLimits.Add(item);
             foreach (int item in Util.SimLimits)
                 VM.SimLimits.Add(item);
             VM.SimLimit = Util.Settings.SimLimit;
             VM.ProcLimit = Util.Settings.ProcLimit;
+            DataContext = VM;
+            AddHandler(DragDrop.DropEvent, Sources_Drop); // DragDrop.DropEvent は XAML から登録不可
+            DialogBox.DefaultOwner = this;
             UpdateHierarchy();
         }
 
         // 設定を表示するボタン（Setting）が押された場合
-        private void ShowSettings_Click(object sender, RoutedEventArgs e)
+        private async void ShowSettings_Click(object sender, RoutedEventArgs e)
         {
             SettingWindow win = new SettingWindow(Util.Settings);
-            win.Owner = GetWindow(this);
-            win.ShowDialog();
+            win.Width = (this.WindowState == WindowState.Normal) ? this.Bounds.Width : Util.Settings.MainWindowWidth;
+            await win.ShowDialog(this);
             if (win.NewSetting != null)
             {
                 Util.Settings.GHDLPath = win.NewSetting.GHDLPath;
@@ -51,56 +57,64 @@ namespace GGFront
         }
 
         // ソースを追加するボタン（Add）が押された場合
-        private void AddSource_Click(object sender, RoutedEventArgs e)
+        private async void AddSource_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog dialog = new OpenFileDialog();
-            dialog.Filter = "VHDL Sources (*.vhd, *.vhdl)|*.vhd;*.vhdl";
-            dialog.Multiselect = true;
-            if (dialog.ShowDialog() == true)
-            {
-                foreach (string FileName in dialog.FileNames)
-                    AddSource(FileName);
+            List<string> exts = new List<string> {"*.vhd", "*.vhdl"};
+            List<string> files = await DialogBox.PickFiles(
+                this, "Select source file(s)", "", "VHDL Sources", exts, Util.Settings.LastlyUsedFolder);
+            if (files.Count > 0) {
+                foreach (string file in files)
+                    AddSource(file);
                 UpdateHierarchy();
+                Util.Settings.Save();
             }
         }
 
-        // ソースの一覧にファイルがドロップされた場合
-        private void Sources_Drop(object sender, DragEventArgs e)
+        // ソースの一覧にファイルがドロップされた場合      
+        private void Sources_Drop(object? sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data.GetFiles() is IEnumerable<IStorageItem> files)
             {
-                foreach (string FileName in (string[]) e.Data.GetData(DataFormats.FileDrop))
-                    if (Regex.IsMatch(FileName, @"\.[vV][hH][dD][lL]?$"))
-                        AddSource(FileName);
+                foreach (IStorageItem file in files)
+                {
+                    string lfile = StorageProviderExtensions.TryGetLocalPath(file) ?? "";
+                    if (Regex.IsMatch(lfile, @"\.vhdl?$", RegexOptions.IgnoreCase))
+                        AddSource(lfile);
+                }
                 UpdateHierarchy();
+                Util.Settings.Save();
             }
         }
 
-        private void AddSource (string FileName)
+        // ソースファイルの実際の追加処理（AddSource_Click, Sources_Drop 共通）
+        private void AddSource(string FileName)
         {
             List<string> currentSources = new List<string>();
             foreach (SourceItem item in VM.SourceCollection)
-                if (item.Name.Equals(FileName))
+                if (item.Name != null && item.Name.Equals(FileName))
                     return;
 
             SourceItem newItem = new SourceItem();
             newItem.Name = FileName;
             newItem.Selected = false;
             VM.SourceCollection.Add(newItem);
+            Util.Settings.LastlyUsedFolder = Path.GetDirectoryName(FileName) ?? "";
         }
 
-        // ソースを削除するボタン（Remove）またはDelキーが押された場合
+        // ソースを削除するボタン（Remove）が押された場合
         private void RemoveSource_Click(object sender, RoutedEventArgs e)
         {
             RemoveSelectedSources();
         }
 
+        // Del キーが押された場合
         private void Sources_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Delete)
                 RemoveSelectedSources();
         }
 
+        // ソースファイルの実際の削除処理（RemoveSource_Click, Sources_KeyDown 共通）
         private void RemoveSelectedSources()
         {
             for (int i = VM.SourceCollection.Count - 1; i >= 0; i -= 1)
@@ -114,21 +128,21 @@ namespace GGFront
         {
             if (VM.SourceCollection.Count == 0)
                 return;
-            if (!Util.WarnAndConfirm("ソースファイル一覧がリセットされます．続けますか？"))
+            if (! DialogBox.WarnAndConfirm("ソースファイル一覧がリセットされます．続けますか？"))
                 return;
             VM.SourceCollection.Clear();
             UpdateHierarchy();
         }
-
-        // トップモジュールを指定するボタン （Set as Top）が押された場合
+        
+        // トップモジュールを指定するボタン （Set as Top）が押された場合（未実装）
         private void SetAsTop_Click(object sender, RoutedEventArgs e)
         {
-            EntityHierarchyItem item = (EntityHierarchyItem)lstHierarchy.SelectedItem;
-            if (item == null)
-                return;
-            Util.CurrentProject.TopModule = item.Name;
-            Util.CurrentProject.GuessTopModule = false;
-            UpdateHierarchy();
+            if (lstHierarchy.SelectedItem is EntityHierarchyItem item)
+            {
+                Util.CurrentProject.TopModule = item.Name ?? "";
+                Util.CurrentProject.GuessTopModule = false;
+                UpdateHierarchy();
+            }
         }
 
         // 階層構造を更新するボタン（Refresh）が押された場合
@@ -142,7 +156,8 @@ namespace GGFront
         {
             Util.CurrentProject.SourceFiles.Clear();
             foreach (SourceItem item in VM.SourceCollection)
-                Util.CurrentProject.SourceFiles.Add(item.Name);
+                if (item.Name != null)
+                    Util.CurrentProject.SourceFiles.Add(item.Name);
 
             List<EntityHierarchyItem> items = Util.CurrentProject.Hierarchy.Update();
             VM.HierarchyCollection.Clear();
@@ -151,20 +166,20 @@ namespace GGFront
 
             if (items[0].IsValid)
             {
-                string wavePath = Util.CurrentProject.WavePath;
-                lblTopModule.Text = "(Waveform: " + Path.GetFileName(wavePath) + ")";
-                lblVHDLStd.Text = "VHDL Version: " +
-                    ((Util.Settings.VHDLStd == 1993) ? "VHDL-93" :
-                     (Util.Settings.VHDLStd == 2008) ? "VHDL-2008" :
-                     (Util.CurrentProject.Hierarchy.IsVHDL2008) ? "VHDL-2008 (Guessed)" : "VHDL-93 (Guessed)");
+                VM.WavePath = Util.CurrentProject.WavePath;
+                VM.VHDLVersion =
+                    (Util.Settings.VHDLStd == 1993) ? MainViewModel.VHDLVersions.VHDL93 :
+                    (Util.Settings.VHDLStd == 2008) ? MainViewModel.VHDLVersions.VHDL2008 :
+                    (Util.CurrentProject.Hierarchy.IsVHDL2008) ? MainViewModel.VHDLVersions.VHDL2008Guess :
+                    MainViewModel.VHDLVersions.VHDL93Guess;
                 Util.CurrentProject.UseVHDL2008 =
                     (Util.Settings.VHDLStd == 2008) ||
                     (Util.Settings.VHDLStd == 0 && Util.CurrentProject.Hierarchy.IsVHDL2008);
             }
             else
             {
-                lblTopModule.Text = "";
-                lblVHDLStd.Text = "VHDL Version: ";
+                VM.WavePath = "";
+                VM.VHDLVersion = MainViewModel.VHDLVersions.None;
             }
         }
 
@@ -178,19 +193,20 @@ namespace GGFront
         private void ViewWave_Click(object sender, RoutedEventArgs e)
         {
             // 入力をチェック
-            if (!Util.Settings.Check())
+            if (! Util.Settings.Check())
                 return;
             Util.Settings.Save();
-            if (!Util.CurrentProject.Check())
+            if (! Util.CurrentProject.Check())
                 return;
-            if (!File.Exists(Util.CurrentProject.WavePath))
+            if (! File.Exists(Util.CurrentProject.WavePath))
             {
-                Util.Warn("波形ファイルが作成されていません．");
+                DialogBox.Warn("波形ファイルが作成されていません．");
                 return;
             }
+            // GTKWave を起動
             Util.ExecTool(Util.GetGTKWavePath(), "\"" + Util.CurrentProject.WavePath + "\"", true);
         }
-
+        
         // シミュレーション時間の設定が変更された場合
         private void Simlimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -203,6 +219,17 @@ namespace GGFront
         {
             Util.Settings.ProcLimit = VM.ProcLimit;
             Util.Settings.Save();
+        }
+
+        // 閉じる前にウィンドウのサイズを保存する
+        private void Window_Closed(object sender, System.EventArgs e)
+        {
+            if (this.WindowState == WindowState.Normal)
+            {
+                Util.Settings.MainWindowHeight = (int) this.Bounds.Height;
+                Util.Settings.MainWindowWidth = (int) this.Bounds.Width;
+                Util.Settings.Save();
+            }
         }
     }
 }

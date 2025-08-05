@@ -8,32 +8,31 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace GGFront
+namespace GGFront.Models
 {
     // 実行結果として得られた波形ファイルを整形する
-    class VCDResult
+    public class VCDResult
     {
         public bool IsValid;
         public string Content;
 
-        public VCDResult(string SourceName, long simTime, Dictionary<string, VHDLSource.VHDLEnumeration> enumSignals)
+        public VCDResult(string SourceName, long simTime, Dictionary<string, VHDLSource.EnumDecl> enumSignals)
         {
-            Dictionary<string, VHDLSource.VHDLEnumeration> enumIdents = new Dictionary<string, VHDLSource.VHDLEnumeration>();
+            Dictionary<string, VHDLSource.EnumDecl> enumIdents = new Dictionary<string, VHDLSource.EnumDecl>();
             try
             {
                 FileInfo fi = new FileInfo(SourceName);
                 StringBuilder c = new StringBuilder((int)fi.Length);
                 StreamReader sr = new StreamReader(SourceName, Encoding.GetEncoding("ISO-8859-1"));
                 Match match;
-                string line;
-                while ((line = sr.ReadLine()) != null)
+                while (sr.ReadLine() is string line)
                 {
                     // 列挙型信号に対応する integer の宣言
                     match = Regex.Match(line, @"^\$var integer 32 ([^ ]+) ([a-z0-9_]+)");
                     if (match.Success && enumSignals.ContainsKey(match.Groups[2].Value))
                     {
                         string ident = match.Groups[1].Value;
-                        VHDLSource.VHDLEnumeration en = enumSignals[match.Groups[2].Value];
+                        VHDLSource.EnumDecl en = enumSignals[match.Groups[2].Value];
                         enumIdents[ident] = en;
                         line = $"$var string 1 {ident} {en.SignalName} $end";
                     }
@@ -68,7 +67,7 @@ namespace GGFront
 
         public void WriteTo(string DestName)
         {
-            if (!IsValid)
+            if (! IsValid)
                 return;
             try
             {

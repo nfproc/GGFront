@@ -2,60 +2,76 @@
 // Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
 //**********************************************************************
 
-using System.Windows;
-using System.Windows.Controls;
+using System.Collections.Generic;
+using System;
+using System.Text;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
+using GGFront.Models;
+using GGFront.ViewModels;
 
-namespace GGFront
+namespace GGFront.Views
 {
-    /// <summary>
-    /// ErrorWindow.xaml の相互作用ロジック
-    /// </summary>
+    // ■■ エラー表示用ウィンドウ ■■
     public partial class ErrorWindow : Window
     {
-        public string MessageForCopy;
+        private ErrorViewModel VM;
+        private string MessageForCopy;
+
         public ErrorWindow()
         {
             InitializeComponent();
+            Width = Util.Settings.ErrorWindowWidth;
+            Height = Util.Settings.ErrorWindowHeight;
+            VM = new ErrorViewModel();
+            VM.TextSize = Util.Settings.ErrorWindowTextSize;
+            DataContext = VM;
+            MessageForCopy = "";
+        }
+
+        public ErrorWindow(List<ErrorListItem> errorLists) : this()
+        {
+            foreach (ErrorListItem item in errorLists)
+                VM.ErrorLists.Add(item);
+
+            // コピーペースト用の文字列
+            StringBuilder sb = new StringBuilder();
+            foreach (ErrorListItem e in errorLists)
+            {
+                sb.Append(e.Head).Append("\n");
+                if (e.Code.Length > 0)
+                    sb.Append(e.Code).Append("\n");
+                int idx = e.Details.IndexOf("\n");
+                if (idx >= 0)
+                    sb.Append(e.Details.Substring(idx + 1)).Append("\n");
+            }
+            MessageForCopy = sb.ToString().Replace("\n", Environment.NewLine);
         }
 
         // - ボタンがクリックされたとき (8 <- 9 <- ... <- 15 <- 16 <- 18 <- ... <- 30 <- 32)
         private void Shrink_Click(object sender, RoutedEventArgs e)
         {
-            int currentSize = (int) this.txtError.FontSize;
-            int newSize = (currentSize > 16) ? currentSize - 2 :
-                          (currentSize > 8) ? currentSize - 1 : currentSize;
-            setTextSize(newSize);
+            VM.TextSize = (VM.TextSize > 16) ? VM.TextSize - 2 :
+                          (VM.TextSize >  8) ? VM.TextSize - 1 : VM.TextSize;
         }
 
         // + ボタンがクリックされたとき (8 -> 9 -> ... -> 15 -> 16 -> 18 -> ... -> 30 -> 32)
         private void Expand_Click(object sender, RoutedEventArgs e)
         {
-            int currentSize = (int)this.txtError.FontSize;
-            int newSize = (currentSize < 16) ? currentSize + 1 :
-                          (currentSize < 32) ? currentSize + 2 : currentSize;
-            setTextSize(newSize);
-
-        }
-
-        // -, + ボタンがクリックされたときの共通処理
-        private void setTextSize(int size)
-        {
-            this.txtError.FontSize = size;
-            foreach (var line in this.txtError.Inlines)
-            {
-                if (line.ToolTip is TextBlock)
-                {
-                    (line.ToolTip as TextBlock).FontSize = size;
-                }
-            }
-            Util.Settings.ErrorWindowTextSize = size;
-            Util.Settings.Save();
+            VM.TextSize = (VM.TextSize < 16) ? VM.TextSize + 1 :
+                          (VM.TextSize < 32) ? VM.TextSize + 2 : VM.TextSize;
         }
 
         // Copy to Clipboard ボタンがクリックされたとき
         private void Copy_Click(object sender, RoutedEventArgs e)
         {
-            Clipboard.SetText(MessageForCopy);
+            if (this.Clipboard is IClipboard)
+            {
+                Task task = Task.Run(async () => { await this.Clipboard.SetTextAsync(MessageForCopy); });
+                task.Wait();
+            }
         }
 
         // Close ボタンがクリックされたとき
@@ -69,8 +85,8 @@ namespace GGFront
         {
             if (this.WindowState == WindowState.Normal)
             {
-                Util.Settings.ErrorWindowHeight = (int) this.ActualHeight;
-                Util.Settings.ErrorWindowWidth = (int) this.ActualWidth;
+                Util.Settings.ErrorWindowHeight = (int) this.Bounds.Height;
+                Util.Settings.ErrorWindowWidth = (int) this.Bounds.Width;
                 Util.Settings.Save();
             }
         }

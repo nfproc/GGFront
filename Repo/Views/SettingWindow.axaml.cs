@@ -1,46 +1,64 @@
-﻿using Microsoft.Win32;
-using System;
-using System.Windows;
-using System.Windows.Controls;
+﻿// GGFront: A GHDL/GTKWave GUI Frontend
+// Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
+//**********************************************************************
 
-namespace GGFront
+using System.Collections.Generic;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using GGFront.Models;
+using GGFront.ViewModels;
+
+namespace GGFront.Views
 {
     // ■■ 設定ウィンドウ ■■
     public partial class SettingWindow : Window
     {
         private SettingViewModel VM;
-        public GGFrontSettings NewSetting;
+        public GGFrontSettings? NewSetting;
 
-        public SettingWindow(GGFrontSettings oldSetting)
-        {
+        public SettingWindow()
+        { 
             InitializeComponent();
+            Width = Util.Settings.MainWindowWidth;
             VM = new SettingViewModel();
             DataContext = VM;
+        }
+     
+        public SettingWindow(GGFrontSettings oldSetting) : this()
+        {
+            VM = new SettingViewModel();
             VM.GHDLPath = oldSetting.GHDLPath;
             VM.GTKWavePath = oldSetting.GTKWavePath;
             VM.GuessGHDLPath = oldSetting.GuessGHDLPath;
             VM.GuessGTKWavePath = oldSetting.GuessGTKWavePath;
             VM.VHDLStd = oldSetting.VHDLStd;
+            DataContext = VM;
         }
 
         // ファイルを検索するボタン（..）が押された場合
-        private void PathSearch_Click(object sender, RoutedEventArgs e)
+        private async void PathSearch_Click(object sender, RoutedEventArgs e)
         {
-            if (((Button)sender).Name.Equals("btnGHDLPathSearch"))
+            List<string> exts = new List<string> { "*" + Util.ExecutableExt };
+            string senderName = ((Button) sender).Name ?? "";
+            if (senderName.Equals("btnGHDLSearch"))
             {
-                OpenFileDialog dialog = new OpenFileDialog();
-                dialog.Filter = "GHDL (ghdl.exe)|ghdl.exe";
-                dialog.FileName = "ghdl.exe";
-                if (dialog.ShowDialog() == true)
-                    VM.GHDLPath = dialog.FileName;
+                string? f = await DialogBox.PickFile
+                    (this, "Select GHDL Executable", "ghdl" + Util.ExecutableExt, "GHDL", exts, Util.BaseDir);
+                if (f != null)
+                {
+                    VM.GuessGHDLPath = false;
+                    VM.GHDLPath = f;
+                }
             }
-            else if (((Button)sender).Name.Equals("btnGTKWavePathSearch"))
+            else if (senderName.Equals("btnGTKWaveSearch"))
             {
-                OpenFileDialog dialog = new OpenFileDialog();
-                dialog.Filter = "GTKWave (gtkwave.exe)|gtkwave.exe";
-                dialog.FileName = "gtkwave.exe";
-                if (dialog.ShowDialog() == true)
-                    VM.GTKWavePath = dialog.FileName;
+                string? f = await DialogBox.PickFile
+                    (this, "Select GTKWave Executable", "gtkwave" + Util.ExecutableExt, "GTKWave", exts, Util.BaseDir);
+                if (f != null)
+                {
+                    VM.GuessGTKWavePath = false;
+                    VM.GTKWavePath = f;
+                }
             }
         }
 

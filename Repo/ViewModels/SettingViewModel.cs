@@ -5,14 +5,17 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
-using System.Windows.Data;
+using Avalonia.Data;
+using Avalonia.Data.Converters;
 
-namespace GGFront
+namespace GGFront.ViewModels
 {
     // ■■ SettingWindow のバインディングの解決用
-    class SettingViewModel : INotifyPropertyChanged
+    public class SettingViewModel : INotifyPropertyChanged
     {
-        private string _ghdlPath;
+        // ■ プロパティ
+        // TextBox txtGHDLPath
+        private string _ghdlPath = "";
         public string GHDLPath
         {
             get => _ghdlPath;
@@ -25,7 +28,8 @@ namespace GGFront
             }
         }
 
-        private string _gtkWavePath;
+        // TextBox txtGTKWavePath
+        private string _gtkWavePath = "";
         public string GTKWavePath
         {
             get => _gtkWavePath;
@@ -38,6 +42,7 @@ namespace GGFront
             }
         }
 
+        // CheckBox chkGuessGHDLPath
         private bool _guessGHDLPath;
         public bool GuessGHDLPath
         {
@@ -51,6 +56,7 @@ namespace GGFront
             }
         }
 
+        // CheckBox chkGuessGTKWavePath
         private bool _guessGTKWavePath;
         public bool GuessGTKWavePath
         {
@@ -64,6 +70,7 @@ namespace GGFront
             }
         }
 
+        // RadioButton rdoVHDLVersion*
         private int _vhdlStd = 0;
         public int VHDLStd
         {
@@ -76,24 +83,30 @@ namespace GGFront
                 OnPropertyChanged("VHDLStd");
             }
         }
-
-        public event PropertyChangedEventHandler PropertyChanged;
+        
+        // ■ イベントハンドラ
+        public event PropertyChangedEventHandler? PropertyChanged;
         protected virtual void OnPropertyChanged(string prop)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
     }
+}
 
+namespace GGFront.ViewModels.SettingConverter
+{
+    // ■■ コンバータクラス
+    // rdoVHDLVersion* のコンバータクラス
     public class VHDLVersionConverter : IValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return (int.Parse((string) parameter) == (int) value);
+            return (int.Parse((string) (parameter ?? "0")) == (int) (value ?? 0));
         }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return (bool) value ? parameter : Binding.DoNothing;
+            return (bool) (value ?? false) ? parameter : BindingOperations.DoNothing;
         }
     }
 }

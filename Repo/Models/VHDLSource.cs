@@ -8,60 +8,77 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace GGFront
+namespace GGFront.Models
 {
     // ソースコードの解析結果を保持するクラス
     public class VHDLSource
     {
-        public struct Component
+        public class ComponentDecl
         {
-            public string Name, From;
+            public string Name = "", From = "";
         };
-        public class VHDLDataFile
+        public class FileDecl
         {
-            public string Original { get; set; }
-            public string Internal { get; set; }
-            public string InEntity { get; set; }
-            public bool referenced;
+            public string Original { get; set; } = "";
+            public string Internal { get; set; } = "";
+            public string InEntity { get; set; } = "";
+            public bool referenced = false;
         };
-        public struct VHDLEnumeration
+        public class EnumDecl
         {
-            public string Entity;
-            public string TypeName;
-            public string SignalName;
-            public List<string> Values;
+            public string Entity = "";
+            public string TypeName = "";
+            public string SignalName = "";
+            public List<string> Values = new List<string>();
         };
-        public class VHDLSourceState
+        public class SourceState
         {
-            public StreamReader Stream;
-            public bool InMultiLineComment;
+            public StreamReader? Stream;
+            public bool InMultiLineComment = false;
         }; 
 
         public bool IsValid;
         public string Content;
-        public VHDLDataFile FileName;
+        public FileDecl FileName;
         public List<string> Entities;
-        public List<Component> Components;
-        public List<VHDLDataFile> InFiles, OutFiles;
+        public List<ComponentDecl> Components;
+        public List<FileDecl> InFiles, OutFiles;
         public List<int> OriginalLineNumber;
-        public Dictionary<string, VHDLEnumeration> EnumSignals;
+        public Dictionary<string, EnumDecl> EnumSignals;
         public bool IsVHDL2008;
+
+        private const string RegexMultiLineDecl    = @"(type\s|signal\s)[^;]+$";
+        private const string RegexEntityDecl       = @"entity\s+([a-z0-9_]+)\s+is";
+        private const string RegexArchitectureDecl = @"architecture\s+([a-z0-9_]+)\s+of\s+([a-z0-9_]+)\s+is";
+        private const string RegexConponentDecl    = @"component\s+([a-z0-9_]+)\s+is";
+                                                   //   12                               3              4   5
+        private const string RegexFileOpen1        = @"^((\s*file\s[a-z0-9_:\s]+)\s+is\s+(in|out|)\s*"")(.+)(""\s*;)";
+        private const string RegexFileOpen2        =
+        //     1                 2                         3   4         5
+            @"^(\s*file_open\s*\((\s*[a-z0-9_]+\s*,\s*)+"")(.+)(""\s*,\s*(read_mode|write_mode)\s*\)\s*;)";
+        private const string RegexEnumTypeDecl     =
+            @"type\s+([a-z0-9_]+)\s+is\s+\((\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*)\)";
+        private const string RegexEnumSignalDecl   = @"signal\s(\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*):\s+([a-z0-9_]+)";
+        private const string RegexEndArchitecture  = @"end\s+([a-z0-9_]+)\s*;";
+        private const string RegexVHDL2008Specific =
+            @"ieee\.numeric_std_unsigned\.|std\.env\.|case\?|select\?|\?[=><\?]|\?/=";
+
 
         // コンストラクタ: ソースファイルの解析を行う
         public VHDLSource(string sourceName, int sourceIndex = 0)
         {
             Entities = new List<string>();
-            Components = new List<Component>();
-            InFiles = new List<VHDLDataFile>();
-            OutFiles = new List<VHDLDataFile>();
-            FileName = new VHDLDataFile
+            Components = new List<ComponentDecl>();
+            InFiles = new List<FileDecl>();
+            OutFiles = new List<FileDecl>();
+            FileName = new FileDecl
             {
                 Original = sourceName,
                 Internal = $"src{sourceIndex}.vhd"
             };
             OriginalLineNumber = new List<int>();
             OriginalLineNumber.Add(0);
-            EnumSignals = new Dictionary<string, VHDLEnumeration>();
+            EnumSignals = new Dictionary<string, EnumDecl>();
             IsVHDL2008 = false;
             Dictionary<string, List<string>> enumTypes = new Dictionary<string, List<string>>();
             char[] trimChars = { ' ', '\t', ',' };
@@ -70,21 +87,19 @@ namespace GGFront
             {
                 FileInfo fi = new FileInfo(sourceName);
                 StringBuilder c = new StringBuilder((int)fi.Length);
-                VHDLSourceState ss = new VHDLSourceState();
+                SourceState ss = new SourceState();
                 ss.Stream = new StreamReader(sourceName, Encoding.GetEncoding("ISO-8859-1"));
                 Match match;
-                string line;
                 string currentEntity = "", currentArchitecture = "";
                 int srcLineNumber = 0;
-                while ((line = ReadLineWithoutComments(ss)) != null)
+                while (ReadLineWithoutComments(ss) is string line)
                 {
                     srcLineNumber++;
                     // 複数行にまたがる type, signal 宣言
-                    match = Regex.Match(line, @"(type\s|signal\s)[^;]+$", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexMultiLineDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
-                        string newLine;
-                        while ((newLine = ReadLineWithoutComments(ss)) != null)
+                        while (ReadLineWithoutComments(ss) is string newLine)
                         {
                             line = line + " " + newLine;
                             srcLineNumber++;
@@ -94,48 +109,47 @@ namespace GGFront
                     }
 
                     // entity 宣言（階層構造作成用）
-                    match = Regex.Match(line, @"entity\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexEntityDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                         Entities.Add(match.Groups[1].Value.ToLower());
                     // architecture 宣言（階層構造作成用）
-                    match = Regex.Match(line, @"architecture\s+([a-z0-9_]+)\s+of\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexArchitectureDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
                         currentEntity = match.Groups[2].Value.ToLower();
                         currentArchitecture = match.Groups[1].Value.ToLower();
                     }
                     // component 宣言（階層構造作成用）
-                    match = Regex.Match(line, @"component\s+([a-z0-9_]+)\s+is", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexConponentDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
-                        Component newComponent = new Component();
+                        ComponentDecl newComponent = new ComponentDecl();
                         newComponent.Name = match.Groups[1].Value.ToLower();
                         newComponent.From = currentEntity;
-                        if (!Components.Contains(newComponent))
+                        if (! Components.Contains(newComponent))
                             Components.Add(newComponent);
                     }
 
                     // 入出力ファイル1: file 宣言時に open する場合
-                    //                            12                               3              4   5
-                    line = Regex.Replace(line, @"^((\s*file\s[a-z0-9_:\s]+)\s+is\s+(in|out|)\s*"")(.+)(""\s*;)", m =>
+                    line = Regex.Replace(line, RegexFileOpen1, m =>
                     {
-                        bool isInput = m.Groups[2].Value.ToLower().EndsWith("read_mode") || m.Groups[3].Value.ToLower() == "in";
+                        bool isInput = m.Groups[2].Value.ToLower().EndsWith("read_mode") ||
+                                       m.Groups[3].Value.ToLower() == "in";
                         string inOut = (isInput) ? "in" : "out";
-                        VHDLDataFile file = AddDataFile(sourceIndex, m.Groups[4].Value, isInput, currentEntity);
+                        FileDecl file = AddDataFile(sourceIndex, m.Groups[4].Value, isInput, currentEntity);
                         return m.Groups[1].Value + file.Internal + m.Groups[5].Value;
                     }, RegexOptions.IgnoreCase);
                     // 入出力ファイル2: process の中で file_open する場合
-                    //                            1                 2                         3   4         5
-                    line = Regex.Replace(line, @"^(\s*file_open\s*\((\s*[a-z0-9_]+\s*,\s*)+"")(.+)(""\s*,\s*(read_mode|write_mode)\s*\)\s*;)", m =>
+                    line = Regex.Replace(line, RegexFileOpen2, m =>
                     {
                         bool isInput = m.Groups[5].Value.ToLower() == "read_mode";
                         string inOut = (isInput) ? "in" : "out";
-                        VHDLDataFile file = AddDataFile(sourceIndex, m.Groups[3].Value, isInput, currentEntity);
+                        FileDecl file = AddDataFile(sourceIndex, m.Groups[3].Value, isInput, currentEntity);
                         return m.Groups[1].Value + file.Internal + m.Groups[4].Value;
                     }, RegexOptions.IgnoreCase);
 
                     // 列挙型の宣言
-                    match = Regex.Match(line, @"type\s+([a-z0-9_]+)\s+is\s+\((\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*)\)", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexEnumTypeDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
                         string typeName = match.Groups[1].Value.ToLower();
@@ -146,7 +160,7 @@ namespace GGFront
                         enumTypes[typeName] = values;
                     }
                     // 列挙型信号の宣言
-                    match = Regex.Match(line, @"signal\s(\s*[a-z0-9_]+\s*,)*(\s*[a-z0-9_]+\s*):\s+([a-z0-9_]+)", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexEnumSignalDecl, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
                         string typeName = match.Groups[3].Value.ToLower();
@@ -160,7 +174,7 @@ namespace GGFront
                             foreach (string s in signalNames)
                             {
                                 string tempName = $"gf_src{sourceIndex}_enum{EnumSignals.Count}";
-                                VHDLEnumeration newSignal = new VHDLEnumeration();
+                                EnumDecl newSignal = new EnumDecl();
                                 newSignal.Entity = currentEntity;
                                 newSignal.TypeName = typeName;
                                 newSignal.SignalName = s;
@@ -173,10 +187,10 @@ namespace GGFront
 
                     }
                     // アーキテクチャ宣言の末尾
-                    match = Regex.Match(line, @"end\s+([a-z0-9_]+)\s*;", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexEndArchitecture, RegexOptions.IgnoreCase);
                     if (match.Success && match.Groups[1].Value.ToLower() == currentArchitecture)
                     {
-                        foreach (KeyValuePair<string, VHDLEnumeration> sig in EnumSignals)
+                        foreach (KeyValuePair<string, EnumDecl> sig in EnumSignals)
                         {
                             if (sig.Value.Entity != currentEntity)
                                 continue;
@@ -185,7 +199,7 @@ namespace GGFront
                         }
                     }
                     // VHDL-2008 特有の記法
-                    match = Regex.Match(line, @"ieee\.numeric_std_unsigned\.|std\.env\.|case\?|select\?|\?[=><\?]|\?/=", RegexOptions.IgnoreCase);
+                    match = Regex.Match(line, RegexVHDL2008Specific, RegexOptions.IgnoreCase);
                     if (match.Success)
                         IsVHDL2008 = true;
 
@@ -209,10 +223,9 @@ namespace GGFront
             }
         }
 
-        public string ReadLineWithoutComments (VHDLSourceState ss)
+        public string? ReadLineWithoutComments (SourceState ss)
         {
-            string line = ss.Stream.ReadLine();
-            if (line == null)
+            if (! (ss.Stream?.ReadLine() is string line))
                 return null;
 
             // 文字列リテラル内の -- や /* を除外する
@@ -261,7 +274,8 @@ namespace GGFront
         {
             try
             {
-                StreamWriter sw = new StreamWriter(workDir + FileName.Internal, false, Encoding.GetEncoding("ISO-8859-1"));
+                StreamWriter sw = new StreamWriter(workDir + FileName.Internal, false,
+                    Encoding.GetEncoding("ISO-8859-1"));
                 sw.Write(Content);
                 sw.Close();
             }
@@ -272,7 +286,7 @@ namespace GGFront
                 return;
             }
 
-            foreach (VHDLDataFile inFile in InFiles)
+            foreach (FileDecl inFile in InFiles)
             {
                 try
                 {
@@ -293,7 +307,7 @@ namespace GGFront
         // テストベンチから書き込まれるデータをコピーする
         public void CopyFromWorkDirectory (string workDir)
         {
-            foreach (VHDLDataFile outFile in OutFiles)
+            foreach (FileDecl outFile in OutFiles)
             {
                 try
                 {
@@ -314,20 +328,20 @@ namespace GGFront
         // テストベンチから読み書きされるファイルが使われるかチェックする
         public void CheckDataFileReference(EntityHierarchy hierarchy)
         {
-            foreach (VHDLDataFile file in InFiles)
-                file.referenced = hierarchy.Referenced(file.InEntity);
-            foreach (VHDLDataFile file in OutFiles)
+            foreach (FileDecl file in InFiles)
+                file.referenced = hierarchy.Referenced(file.InEntity); 
+            foreach (FileDecl file in OutFiles)
                 file.referenced = hierarchy.Referenced(file.InEntity);
         }
 
         // テストベンチから読み書きされるファイルをリストに追加する
-        VHDLDataFile AddDataFile(int SourceIndex, string OriginalName, bool isInput, string EntityName)
+        FileDecl AddDataFile(int SourceIndex, string OriginalName, bool isInput, string EntityName)
         {
             string inOut = (isInput) ? "in" : "out";
             int fileIndex = (isInput) ? InFiles.Count : OutFiles.Count;
-            VHDLDataFile file = new VHDLDataFile
+            FileDecl file = new FileDecl
             {
-                Original = Path.Combine(Path.GetDirectoryName(FileName.Original), OriginalName),
+                Original = Path.Combine(Path.GetDirectoryName(FileName.Original) ?? "", OriginalName),
                 Internal = $"src{SourceIndex}_{inOut}{fileIndex}",
                 InEntity = EntityName
             };

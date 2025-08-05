@@ -1,0 +1,16 @@
+﻿<!-- GGFront: A GHDL/GTKWave GUI Frontend
+     Copyright (C) 2018-2025 Naoki FUJIEDA. New BSD License is applied.
+     *******************************************************************-->
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="GGFront.App"
+			 xmlns:local="GGFront"
+			 RequestedThemeVariant="Light">
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+	<Application.Resources>
+	</Application.Resources>
+</Application>

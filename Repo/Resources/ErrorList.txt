@@ -238,3 +238,7 @@ primary expression expected
 primary expression expected
 文法エラーです．式が来るべきところで，それ以外のものが見つかりました．
 当該箇所にスペルミス（and ではなく end と書いてしまったなど）などがないか確認してください．
+use of synopsys package
+use of synopsys package "●●" needs the -fsynopsys option
+VHDL-2008 モードでは synopsys 社の非標準パッケージは使用できません．
+VHDL のバージョン設定が正しいか確認してください．もし VHDL-2008 で std_logic_unsigned パッケージを使用しているのであれば，かわりに numeric_std_unsigned の利用を検討してください．

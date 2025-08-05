@@ -6,14 +6,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Media;
+using GGFront.ViewModels;
 
-namespace GGFront
+namespace GGFront.Models
 {
-    // 外部プログラムの実行結果を整形する
+    // 外部プログラムの実行結果を解析する
     public class GHDLResult
     {
         public int ExitCode;
@@ -21,11 +18,13 @@ namespace GGFront
         public bool SimFinished;
         public long SimTime;
         public string Message;
-        private GHDLErrorDescription[] Descs;
-
+        public List<ErrorListItem> ErrorDetails;
+        
         public GHDLResult()
         {
             GeneratedDate = DateTime.Now.ToString();
+            Message = "";
+            ErrorDetails = new List<ErrorListItem>();
         }
 
         private string GetOriginalFileName(List<string> org, List<List<int>> lineNumber, Match match)
@@ -46,46 +45,68 @@ namespace GGFront
             {
                 result += " ファイル末尾";
             }
-            else {
+            else
+            {
                 result += " GGFrontの内部エラー";
             }
             return result;
         }
 
-        public void RestoreFileName(List<string> org, List<List<int>> lineNumber, bool use2008)
+        public void Analyze(List<string> org, List<List<int>> lineNumber, bool use2008)
         {
             if (Message == "")
                 return;
 
-            string newMessage = "";
+            ErrorDetails = new List<ErrorListItem>();
             string[] lines = Message.Replace("\r\n", "\n").Split('\n');
-            Descs = new GHDLErrorDescription[lines.Length];
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                // ファイル名の復元
-                Match match = Regex.Match(line, @":error:");
-                if (match.Success)
-                {
-                    line = line.Substring(match.Index + 1);
-                    Descs[i] = Util.ErrorList.match(line);
-                }
-                match = Regex.Match(line, @"^src(\d+)\.vhd:(\d+):(\d+):(warning:)?(.*)");
+                bool isErrorLine = false;
+                string problematicCode = "";
+                string detail = "詳細説明はありません．";
+                
+                // 置き換えるべきファイル名があるかどうか調べる
+                Match match = Regex.Match(line, @"^src(\d+)\.vhd:(\d+):(\d+):(error:|warning:)?(.*)");
                 if (match.Success)
                 {
                     line = "[" + GetOriginalFileName(org, lineNumber, match);
-                    if (match.Groups[4].Value != "")
+                    if (match.Groups[4].Value == "warning:")
                         line += " (警告)";
                     line += "] " + match.Groups[5].Value;
-                    Descs[i] = Util.ErrorList.match(line);
+                    isErrorLine = true;
+                }
+                match = Regex.Match(line, @":error:");
+                if (match.Success)
+                {
+                    line = line.Substring(match.Index + 1);
+                    isErrorLine = true;
                 }
                 match = Regex.Match(line, @"at src(\d+)\.vhd:(\d+):?(\d*)$");
                 if (match.Success)
                     line = line.Substring(0, match.Index + 3) + "[" + GetOriginalFileName(org, lineNumber, match) + "]";
-                newMessage += line + "\r\n";
 
+                // 2行下に ^ が見つかれば，下に問題のあるコードが記載されているとみなす
+                if (isErrorLine && i + 2 < lines.Length && Regex.IsMatch(lines[i + 2], @"^\s*\^"))
+                {
+                    problematicCode = lines[i + 1] + "\n" + lines[i + 2];
+                    i += 2;
+                }
+
+                // エラー内容をリストに追加
+                GHDLErrorDescription? desc = (isErrorLine) ? Util.ErrorList.Match(line) : null;
+                if (desc != null)
+                {
+                    detail = desc.Name + "\n";
+                    detail += "　説明: " + desc.Description + "\n";
+                    detail += "　対処: " + desc.Handling + "\n";
+                }
+                if (line.Length > 0)
+                    ErrorDetails.Add(new ErrorListItem(line, problematicCode, detail));
+                    
                 // シミュレーション終了時刻の取得
-                string query = (use2008) ? @"simulation (?:finished|stopped) @(\d+)([munpf])s" : @"@(\d+)([munpf])s:\(assertion failure\)";
+                string query = (use2008) ? @"simulation (?:finished|stopped) @(\d+)([munpf])s" :
+                    @"@(\d+)([munpf])s:\(assertion failure\)";
                 match = Regex.Match(line, query);
                 if (match.Success)
                 {
@@ -101,68 +122,7 @@ namespace GGFront
                         SimTime *= 1000000000000;
                 }
             }
-            Message = newMessage;
-        }
-
-        public void ShowMessage()
-        {
-            ErrorWindow win = new ErrorWindow();
-            string messageForCopy = "";
-            FontFamily consolas = new FontFamily("Consolas");
-            win.Title = ((ExitCode != 0) ? "エラー" : "警告") + " [" + GeneratedDate + "]";
-            win.Height = Util.Settings.ErrorWindowHeight;
-            win.Width = Util.Settings.ErrorWindowWidth;
-            win.Owner = Application.Current.MainWindow;
-            win.txtError.FontSize = Util.Settings.ErrorWindowTextSize;
-
-            string[] lines = Message.Replace("\r\n", "\n").Split('\n');
-            bool[] isCode = new bool[lines.Length];
-            for (int i = 1; i < Descs.Length; i++)
-            {
-                if (Regex.IsMatch(lines[i], @"^\s*\^"))
-                {
-                    isCode[i] = true;
-                    isCode[i - 1] = true;
-                }
-            }
-            for (int i = 0; i < Descs.Length; i++)
-            {
-                messageForCopy += lines[i] + "\r\n";
-                Run newRun = new Run(lines[i] + "\n");
-                if (isCode[i])
-                {
-                    newRun.FontFamily = consolas;
-                    newRun.Foreground = Brushes.Brown;
-
-                }
-                if (Descs[i] != null)
-                {
-                    TextBlock tb = new TextBlock();
-                    tb.FontSize = Util.Settings.ErrorWindowTextSize;
-                    tb.MaxWidth = Util.Settings.ErrorWindowWidth;
-                    tb.TextWrapping = TextWrapping.Wrap;
-                    tb.Inlines.Add(new Run
-                    {
-                        Text = Descs[i].Name + "\n",
-                        Foreground = Brushes.Blue,
-                        FontWeight = FontWeights.Bold,
-                        TextDecorations = TextDecorations.Underline
-                    });
-                    tb.Inlines.Add(new Bold(new Run("説明: ")));
-                    tb.Inlines.Add(new Run(Descs[i].Description + "\n"));
-                    tb.Inlines.Add(new Bold(new Run("対処: ")));
-                    tb.Inlines.Add(new Run(Descs[i].Handling));
-                    newRun.ToolTip = tb;
-                    ToolTipService.SetShowDuration(newRun, int.MaxValue);
-
-                    messageForCopy += "  説明: " + Descs[i].Description + "\r\n";
-                    messageForCopy += "  対処: " + Descs[i].Handling + "\r\n";
-                }
-                win.txtError.Inlines.Add(newRun);
-            }
-
-            win.MessageForCopy = messageForCopy;
-            win.Show();
         }
     }
 }
+
