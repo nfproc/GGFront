@@ -199,6 +199,7 @@ namespace GGFront.Models
                 p.Close();
                 return null;
             }
+            p.WaitForExit(); // 引数なしの WaitForExit で DataReceivedEventHandler の処理を待つ
             result.ExitCode = p.ExitCode;
             if (! string.IsNullOrEmpty(result.Message) && (outMessage != "" || errMessage != ""))
                 result.Message += "\n";
