@@ -243,6 +243,9 @@ namespace GGFront.Models
                 p.StartInfo.CreateNoWindow = NoWindow;
                 p.StartInfo.WorkingDirectory = WorkDir;
                 p.StartInfo.Arguments = args;
+                // mac 版 GTKWave のライブラリ参照に関する問題の回避
+                if (OperatingSystem.IsMacOS())
+                    p.StartInfo.EnvironmentVariables.Add("GDK_PIXBUF_MODULE_FILE", "/dev/null");
                 p.Start();
             }
             catch (Exception ex)
